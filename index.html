@@ -8,7 +8,7 @@
         body { 
             margin: 0; 
             background-color: #1a1a1a; 
-            height: 260vh;  /* scroll ends just after letters reach full opacity */
+            height: 260vh;  /* scroll ends around when letters are fully visible */
             font-family: 'Courier New', Courier, monospace;
         }
 
@@ -17,10 +17,34 @@
             position: fixed;
             top: 0;
             left: 0;
-            z-index: -1;
+            z-index: -2;   /* furthest back: 3D scene */
         }
 
-        /* Letters now fixed, below the ∞, and faded in by JS */
+        /* Soft halo behind the torus, above canvas but below UI */
+        #torus-glow {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 42vw;
+            height: 42vw;
+            max-width: 620px;
+            max-height: 620px;
+            background: radial-gradient(
+                circle,
+                rgba(255,255,255,0.28) 0%,
+                rgba(255,255,255,0.12) 28%,
+                rgba(255,255,255,0.03) 55%,
+                transparent 75%
+            );
+            opacity: 0;
+            pointer-events: none;
+            mix-blend-mode: screen;
+            transition: opacity 0.35s ease-out;
+            z-index: -1;   /* between canvas and text */
+        }
+
+        /* Letters fixed below ∞, faded in by JS */
         #alphabet-container {
             position: fixed;
             left: 50%;
@@ -88,6 +112,9 @@
         SCROLL DOWN TO EXPLORE
     </div>
 
+    <!-- Screen-space halo behind the torus -->
+    <div id="torus-glow"></div>
+
     <!-- Fixed letters, will fade in after enough scrolling -->
     <div id="alphabet-container">
         <div class="letter-row" id="row-1"></div> <!-- A–J -->
@@ -138,14 +165,15 @@
             });
         });
 
-        // --- 2b. HOVER EFFECT: glow torus when hovering any letter ---
+        // --- 2b. HOVER: toggle CSS halo instead of 3D duplicate mesh ---
+        const torusGlow = document.getElementById('torus-glow');
         const letterLinks = document.querySelectorAll('.letter-link');
         letterLinks.forEach(link => {
             link.addEventListener('mouseenter', () => {
-                glowMesh.visible = true;
+                torusGlow.style.opacity = '1';
             });
             link.addEventListener('mouseleave', () => {
-                glowMesh.visible = false;
+                torusGlow.style.opacity = '0';
             });
         });
 
@@ -190,24 +218,11 @@
         });
 
         const torusMesh = new THREE.Mesh(geometry, wireframeMaterial);
-
-        // Glow mesh: slightly larger, faint wireframe
-        const glowMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.25
-        });
-
-        const glowMesh = new THREE.Mesh(geometry, glowMaterial);
-        glowMesh.scale.multiplyScalar(1.04);  // subtle halo
-        glowMesh.visible = false;             // only on hover
-
+        
         const group = new THREE.Group();
         group.add(torusMesh);
-        group.add(glowMesh);
         
-        // Lights kept but have no effect on MeshBasic
+        // Lights kept but have no effect on MeshBasic (harmless)
         const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
         mainLight.position.set(5, 10, 7); 
         group.add(mainLight);
@@ -236,10 +251,10 @@
             // Hint fades out in first half-screen
             const hintProgress = Math.min(scrollY / (0.5 * vh), 1);
             scrollHint.style.opacity = String(1 - hintProgress);
-            
-            // Letters fade in after ~1 screen, fade out if user scrolls back up
-            const showStart = 1 * vh;        // start fading in after 1 viewport height
-            const fadeSpan  = 0.6 * vh;      // fade over 0.6 viewport heights
+
+            // Letters fade in after ~1 screen, fade out when scrolling back up
+            const showStart = 1 * vh;
+            const fadeSpan  = 0.6 * vh;
 
             let alpha = (scrollY - showStart) / fadeSpan;
             if (alpha < 0) alpha = 0;
@@ -250,7 +265,7 @@
         }
 
         window.addEventListener('scroll', handleScroll);
-        handleScroll(); // set initial state
+        handleScroll(); // initial state
 
         // --- 7. RESPONSIVENESS ---
         function adjustCameraDistance() {
