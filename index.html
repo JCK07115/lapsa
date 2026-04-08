@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Möbius Strip Demo (White)</title>
+    <title>Möbius Tube Demo</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #1a1a1a; }
         canvas { display: block; }
@@ -31,7 +31,7 @@
     </script>
 </head>
 <body>
-    <div id="info">Möbius Strip</div>
+    <div id="info">Möbius Tube</div>
 
     <script type="module">
         import * as THREE from 'three';
@@ -51,41 +51,43 @@
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        // 4. GEOMETRY MATH
-        const moebiusFunction = (u, v, target) => {
+        // 4. GEOMETRY MATH (Volumetric Tube)
+        // u = angle around the main ring (0..2PI)
+        // v = angle around the tube cross-section (0..2PI)
+        const moebiusTubeFunction = (u, v, target) => {
             u = u * Math.PI * 2; 
-            v = v * 2 - 1;       
+            v = v * Math.PI * 2; 
             
-            const R = 3.5; 
-            const w = 0.8; 
+            const R = 3.5;  // Radius of the main loop
+            const r = 0.45; // Radius of the tube (Reduced width/thickness)
 
-            const x = (R + w * v * Math.cos(u / 2)) * Math.cos(u);
-            const z = (R + w * v * Math.cos(u / 2)) * Math.sin(u); 
-            const y = w * v * Math.sin(u / 2); 
+            // The "Twist": We add u/2 to the v angle.
+            // As we go around the main loop (u), the tube rotates 180 degrees (u/2).
+            const weirdness = t => t; // Identity function for standard circular cross section
+
+            const x = (R + r * Math.cos(v + u / 2)) * Math.cos(u);
+            const z = (R + r * Math.cos(v + u / 2)) * Math.sin(u);
+            const y = r * Math.sin(v + u / 2);
 
             target.set(x, y, z);
         };
 
-        const geometry = new ParametricGeometry(moebiusFunction, 120, 20);
+        // Increased segments for smoothness
+        const geometry = new ParametricGeometry(moebiusTubeFunction, 120, 40);
 
         // 5. MATERIALS
-        
-        // MAIN BODY: Pure White
-        const material = new THREE.MeshPhysicalMaterial({ 
-            color: 0xffffff,        // White
-            roughness: 0.2,         // Smooth
-            metalness: 0.1,         // Slight metallic reflection
-            clearcoat: 0.5,         // Glossy coating
-            clearcoatRoughness: 0.1,
-            side: THREE.DoubleSide,
+        const material = new THREE.MeshStandardMaterial({ 
+            color: 0xffffff,        
+            roughness: 1.0,         // Fully Matte (No shine)
+            metalness: 0.0,         
+            flatShading: false,
         });
 
-        // WIREFRAME: Dark Grey (to contrast against white body)
         const wireframeMaterial = new THREE.MeshBasicMaterial({
-            color: 0x222222,        // Dark Grey/Black
+            color: 0x111111,        // Very dark grey
             wireframe: true,
             transparent: true,
-            opacity: 0.08           // Very subtle
+            opacity: 0.08           
         });
 
         // 6. MESH & GROUP
@@ -95,24 +97,28 @@
         const group = new THREE.Group();
         group.add(moebiusMesh);
         group.add(wireframeMesh);
+        
+        // 7. LIGHTING (Attached to GROUP, not SCENE)
+        // By adding the light to the group, the light rotates WITH the object.
+        // This eliminates the "moving highlight" effect.
+        
+        const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        mainLight.position.set(5, 10, 7); // Fixed relative to the object
+        group.add(mainLight);
+
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        fillLight.position.set(-5, -5, -5); 
+        group.add(fillLight);
+
         scene.add(group);
 
-        // 7. ORIENTATION & SCALE
-        group.scale.set(0.7, 0.7, 0.7);            // Scaled down 30%
-        group.rotation.x = THREE.MathUtils.degToRad(12); // Low tilt
-
-        // 8. LIGHTING
-        // Increased ambient light slightly so the white doesn't look grey in shadows
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        // Ambient light for general brightness (This stays in scene)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
         scene.add(ambientLight);
 
-        const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
-        mainLight.position.set(5, 10, 7);
-        scene.add(mainLight);
-        
-        const rimLight = new THREE.DirectionalLight(0xccffff, 2); // Cool blue rim light
-        rimLight.position.set(-5, 0, -5);
-        scene.add(rimLight);
+        // 8. ORIENTATION & SCALE
+        group.scale.set(0.7, 0.7, 0.7);      
+        group.rotation.x = THREE.MathUtils.degToRad(12); 
 
         // 9. ANIMATION
         function animate() {
