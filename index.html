@@ -3,16 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Torus Wireframe Demo</title>
+    <title>Figure-Eight Torus</title>
     <style>
-        body { 
-            margin: 0; 
-            overflow: hidden; 
-            background-color: #000000; 
-        }
-        canvas { 
-            display: block; 
-        }
+        body { margin: 0; overflow: hidden; background-color: #000000; }
+        canvas { display: block; }
         #info {
             position: absolute;
             top: 20px;
@@ -37,15 +31,32 @@
     </script>
 </head>
 <body>
-    <div id="info">Torus</div>
+    <div id="info">Figure-Eight Torus</div>
 
     <script type="module">
         import * as THREE from 'three';
 
+        // Custom centerline curve: a planar figure-eight (∞)
+        class FigureEightCurve extends THREE.Curve {
+            constructor(scale = 1) {
+                super();
+                this.scale = scale;
+            }
+
+            getPoint(t, target = new THREE.Vector3()) {
+                const a = t * Math.PI * 2;
+
+                // Simple figure-eight / Lissajous-like curve
+                const x = Math.sin(a);
+                const y = 0.5 * Math.sin(2 * a); // adjust 0.5 to stretch/compress vertically
+                const z = 0;
+
+                return target.set(x, y, z).multiplyScalar(this.scale);
+            }
+        }
+
         // 1. SCENE
         const scene = new THREE.Scene();
-        // Optional: very light fog to soften far lines
-        scene.fog = new THREE.FogExp2(0x000000, 0.06);
 
         // 2. CAMERA
         const camera = new THREE.PerspectiveCamera(
@@ -62,63 +73,61 @@
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        // 4. GEOMETRY – classic torus, with sparse segments
-        const radius = 3.5;          // main radius
-        const tubeRadius = 1.0;      // thickness of torus tube
-        const radialSegments = 18;   // segments around main circle (lower = sparser)
-        const tubularSegments = 48;  // segments around tube (lower = sparser)
+        // 4. GEOMETRY – tube around the figure-eight curve
+        const curve = new FigureEightCurve(3.0); // overall size
+        const pathSegments   = 120;  // along the curve (lower = more open)
+        const tubeRadius     = 0.4;  // thickness of the tube
+        const radialSegments = 10;   // around the tube (lower = more open)
 
-        const geometry = new THREE.TorusGeometry(
-            radius,
+        const geometry = new THREE.TubeGeometry(
+            curve,
+            pathSegments,
             tubeRadius,
             radialSegments,
-            tubularSegments
+            true // closed loop
         );
 
-        // 5. MATERIAL – pure wireframe, no solid fill
-        const wireframeMaterial = new THREE.MeshBasicMaterial({
+        // 5. MATERIAL – pure white wireframe, background visible through gaps
+        const material = new THREE.MeshBasicMaterial({
             color: 0xffffff,
             wireframe: true,
             transparent: true,
-            opacity: 0.85
+            opacity: 0.9
         });
 
-        const torusMesh = new THREE.Mesh(geometry, wireframeMaterial);
+        const mesh = new THREE.Mesh(geometry, material);
 
-        // 6. GROUP (for easier transforms)
+        // 6. GROUP
         const group = new THREE.Group();
-        group.add(torusMesh);
+        group.add(mesh);
         scene.add(group);
 
-        // 7. ORIENTATION & SCALE
-        group.scale.set(0.85, 0.85, 0.85);
+        // 7. ORIENTATION – start roughly like the sample (tilted ∞)
+        group.scale.set(0.95, 0.95, 0.95);
+        group.rotation.x = THREE.MathUtils.degToRad(38);
+        group.rotation.z = THREE.MathUtils.degToRad(20);
 
-        // Start with a tilt so silhouette changes as it spins
-        group.rotation.x = THREE.MathUtils.degToRad(60);
-        group.rotation.z = THREE.MathUtils.degToRad(15);
-
-        // 8. ANIMATION
+        // 8. ANIMATION – slow spin so silhouette shifts (∞ → U, etc.)
         function animate() {
             requestAnimationFrame(animate);
 
-            // Slow continuous turntable
-            group.rotation.y += 0.008;
-            // Subtle secondary motion for more interesting silhouettes
-            group.rotation.x += 0.0015;
+            group.rotation.y += 0.008;   // main turntable
+            group.rotation.x += 0.0015;  // slight extra wobble
 
             renderer.render(scene, camera);
         }
 
-        // 9. RESIZE HANDLER
+        // 9. RESIZE
         window.addEventListener('resize', () => {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            camera.aspect = width / height;
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            camera.aspect = w / h;
             camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
+            renderer.setSize(w, h);
         });
 
         animate();
     </script>
 </body>
 </html>
+
