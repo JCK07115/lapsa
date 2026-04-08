@@ -8,7 +8,7 @@
         body { 
             margin: 0; 
             background-color: #1a1a1a; 
-            height: 250vh;
+            height: 260vh;  /* scroll ends just after letters reach full opacity */
             font-family: 'Courier New', Courier, monospace;
         }
 
@@ -20,48 +20,43 @@
             z-index: -1;
         }
 
+        /* Letters now fixed, below the ∞, and faded in by JS */
         #alphabet-container {
             position: fixed;
-            top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            max-width: 600px;
+            top: 68%;                 /* below center / ∞ */
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 700px;
             text-align: center;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-            pointer-events: none;
+            color: #ffffff;
+            opacity: 0;               /* controlled by JS */
+            pointer-events: none;     /* enabled when visible */
+            transition: opacity 0.25s linear;
         }
 
-        #alphabet-container.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .letter-grid {
+        .letter-row {
             display: flex;
-            flex-wrap: wrap;
             justify-content: center;
-            gap: 15px;
+            gap: 18px;
+            margin-bottom: 10px;
         }
 
         .letter-link {
             color: #ffffff;
             text-decoration: none;
-            font-size: 24px;
-            font-weight: bold;
-            width: 40px;
-            height: 40px;
-            line-height: 40px;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 50%;
-            transition: all 0.3s;
+            font-size: 18px;
+            font-weight: 500;
+            padding: 2px 2px 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.4);
+            transition: all 0.25s ease;
         }
 
         .letter-link:hover {
-            background: white;
             color: #1a1a1a;
-            transform: scale(1.2);
+            background: #ffffff;
+            border-bottom-color: #ffffff;
+            transform: translateY(-2px);
         }
 
         #scroll-hint {
@@ -87,10 +82,17 @@
 </head>
 <body>
 
-    <div id="scroll-hint">SCROLL DOWN TO EXPLORE</div>
+    <div id="scroll-hint">
+        WELCOME TO LAPSA
+        <br>
+        SCROLL DOWN TO EXPLORE
+    </div>
 
+    <!-- Fixed letters, will fade in after enough scrolling -->
     <div id="alphabet-container">
-        <div class="letter-grid" id="grid-target"></div>
+        <div class="letter-row" id="row-1"></div> <!-- A–J -->
+        <div class="letter-row" id="row-2"></div> <!-- K–T -->
+        <div class="letter-row" id="row-3"></div> <!-- U–Z -->
     </div>
 
     <script type="module">
@@ -113,31 +115,52 @@
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. ALPHABET LINKS ---
+        // --- 2. ALPHABET LINKS (3 rows: A–J, K–T, U–Z) ---
         const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-        const gridTarget = document.getElementById("grid-target");
-        letters.forEach(char => {
-            const a = document.createElement('a');
-            a.href = "#";
-            a.className = "letter-link";
-            a.innerText = char;
-            gridTarget.appendChild(a);
+        const row1 = document.getElementById("row-1");
+        const row2 = document.getElementById("row-2");
+        const row3 = document.getElementById("row-3");
+
+        const groups = [
+            letters.slice(0, 10),   // A–J
+            letters.slice(10, 20),  // K–T
+            letters.slice(20)       // U–Z
+        ];
+        const rows = [row1, row2, row3];
+
+        groups.forEach((group, i) => {
+            group.forEach(char => {
+                const a = document.createElement('a');
+                a.href = "#";
+                a.className = "letter-link";
+                a.innerText = char;
+                rows[i].appendChild(a);
+            });
         });
 
-        // --- 3. GEOMETRY – indented torus with animated cross-section phase ---
+        // --- 2b. HOVER EFFECT: glow torus when hovering any letter ---
+        const letterLinks = document.querySelectorAll('.letter-link');
+        letterLinks.forEach(link => {
+            link.addEventListener('mouseenter', () => {
+                glowMesh.visible = true;
+            });
+            link.addEventListener('mouseleave', () => {
+                glowMesh.visible = false;
+            });
+        });
+
+        // --- 3. GEOMETRY – indented torus with flowing cross-section ---
         const SEG_U = 40;
         const SEG_V = 11;
 
-        const R = 3.8;       // main radius
-        const r = 0.55;      // tube radius
-        const INDENT = 1.8;  // depth of the two dips
+        const R = 3.8;        // main radius
+        const r = 0.55;       // tube radius
+        const INDENT = 1.8;   // depth of the two dips
 
-        // Compute a single point on the indented torus, with a phase applied to v
         function indentedTorusPoint(u, v, phase, target) {
-            // u, v in [0,1]
             const TWO_PI = Math.PI * 2;
             const up = u * TWO_PI;
-            const vp = (v + phase) * TWO_PI; // phase only affects cross-section
+            const vp = (v + phase) * TWO_PI;
 
             const cosu = Math.cos(up),  sinu = Math.sin(up);
             const cosv = Math.cos(vp),  sinv = Math.sin(vp);
@@ -146,14 +169,12 @@
             let z = (R + r * cosv) * sinu;
             let y = r * sinv;
 
-            // Vertical dips at u = 0, π (two opposite points)
-            const dip = (1 - Math.cos(2 * up)) * 0.5; // 0 → 1 → 0 twice around loop
+            const dip = (1 - Math.cos(2 * up)) * 0.5;
             y -= INDENT * dip;
 
             target.set(x, y, z);
         }
 
-        // Initial geometry (phase = 0)
         const geometry = new ParametricGeometry(
             (u, v, target) => indentedTorusPoint(u, v, 0.0, target),
             SEG_U,
@@ -169,9 +190,22 @@
         });
 
         const torusMesh = new THREE.Mesh(geometry, wireframeMaterial);
-        
+
+        // Glow mesh: slightly larger, faint wireframe
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.25
+        });
+
+        const glowMesh = new THREE.Mesh(geometry, glowMaterial);
+        glowMesh.scale.multiplyScalar(1.04);  // subtle halo
+        glowMesh.visible = false;             // only on hover
+
         const group = new THREE.Group();
         group.add(torusMesh);
+        group.add(glowMesh);
         
         // Lights kept but have no effect on MeshBasic
         const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
@@ -185,31 +219,38 @@
         scene.add(group);
         scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-        // --- 5. ORIENTATION – lock an ∞ silhouette using only Y rotation ---
+        // --- 5. ORIENTATION – your tuned ∞ silhouette ---
         group.scale.set(0.7, 0.7, 0.7);
-
-        // Try ~35° about Y; adjust to taste (e.g. 30–45)
         group.rotation.x = THREE.MathUtils.degToRad(-8);
         group.rotation.y = THREE.MathUtils.degToRad(40);
         group.rotation.z = THREE.MathUtils.degToRad(6);
 
-        // --- 6. SCROLL: only UI visibility ---
-        const alphabetContainer = document.getElementById('alphabet-container');
+        // --- 6. SCROLL: fade out hint; fade letters in/out based on depth ---
         const scrollHint = document.getElementById('scroll-hint');
+        const alphabetContainer = document.getElementById('alphabet-container');
 
-        window.addEventListener('scroll', () => {
+        function handleScroll() {
             const scrollY = window.scrollY;
-            const viewportHeight = window.innerHeight;
-            const progress = Math.min(scrollY / viewportHeight, 1);
+            const vh = window.innerHeight;
 
-            if (progress > 0.85) {
-                alphabetContainer.classList.add('visible');
-                scrollHint.style.opacity = '0';
-            } else {
-                alphabetContainer.classList.remove('visible');
-                scrollHint.style.opacity = '1';
-            }
-        });
+            // Hint fades out in first half-screen
+            const hintProgress = Math.min(scrollY / (0.5 * vh), 1);
+            scrollHint.style.opacity = String(1 - hintProgress);
+            
+            // Letters fade in after ~1 screen, fade out if user scrolls back up
+            const showStart = 1 * vh;        // start fading in after 1 viewport height
+            const fadeSpan  = 0.6 * vh;      // fade over 0.6 viewport heights
+
+            let alpha = (scrollY - showStart) / fadeSpan;
+            if (alpha < 0) alpha = 0;
+            if (alpha > 1) alpha = 1;
+
+            alphabetContainer.style.opacity = String(alpha);
+            alphabetContainer.style.pointerEvents = alpha > 0.05 ? 'auto' : 'none';
+        }
+
+        window.addEventListener('scroll', handleScroll);
+        handleScroll(); // set initial state
 
         // --- 7. RESPONSIVENESS ---
         function adjustCameraDistance() {
@@ -253,11 +294,8 @@
 
         function animate() {
             requestAnimationFrame(animate);
-
-            // Advance phase for "flow" around the tube
-            phase = (phase + 0.0015) % 1.0;
+            phase = (phase + 0.0015) % 1.0;   // contemplative flow
             updateFlow(phase);
-
             renderer.render(scene, camera);
         }
 
