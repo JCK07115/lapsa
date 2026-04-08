@@ -3,23 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Möbius Demo</title>
+    <title>Möbius Alphabet</title>
     <style>
-        /* 
-           Background set to a dark charcoal (#1a1a1a). 
-           Change this hex code to match your site theme.
-        */
+        /* 1. SCROLL SETUP */
         body { 
             margin: 0; 
-            overflow: hidden; 
             background-color: #1a1a1a; 
+            height: 250vh; /* Make page tall to allow scrolling */
+            font-family: 'Courier New', Courier, monospace;
         }
+
+        /* 2. FIXED CANVAS */
+        /* The 3D view stays put while we scroll "over" it */
         canvas { 
             display: block; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1; /* Behind everything */
+        }
+
+        /* 3. ALPHABET OVERLAY */
+        #alphabet-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            text-align: center;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.5s ease;
+            pointer-events: none; /* Click-through when hidden */
+        }
+
+        /* When we add this class via JS, it becomes visible */
+        #alphabet-container.visible {
+            opacity: 1;
+            pointer-events: auto; /* Enable clicking links */
+        }
+
+        .letter-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .letter-link {
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 24px;
+            font-weight: bold;
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .letter-link:hover {
+            background: white;
+            color: #1a1a1a;
+            transform: scale(1.2);
+        }
+
+        /* Scroll indicator helper */
+        #scroll-hint {
+            position: fixed;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255,255,255,0.3);
+            font-size: 12px;
+            pointer-events: none;
+            transition: opacity 0.3s;
         }
     </style>
     
-    <!-- Load Three.js from CDN (No install required) -->
     <script type="importmap">
         {
             "imports": {
@@ -30,6 +92,17 @@
     </script>
 </head>
 <body>
+
+    <!-- Scroll Hint -->
+    <div id="scroll-hint">SCROLL DOWN TO EXPLORE</div>
+
+    <!-- The Alphabet UI -->
+    <div id="alphabet-container">
+        <div class="letter-grid" id="grid-target">
+            <!-- Letters injected via JS -->
+        </div>
+    </div>
+
     <script type="module">
         import * as THREE from 'three';
         import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
@@ -45,31 +118,33 @@
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. THE GEOMETRY MATH ---
+        // --- 2. GENERATE ALPHABET LINKS ---
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        const gridTarget = document.getElementById("grid-target");
+        letters.forEach(char => {
+            const a = document.createElement('a');
+            a.href = "#"; // Placeholder link
+            a.className = "letter-link";
+            a.innerText = char;
+            gridTarget.appendChild(a);
+        });
+
+        // --- 3. GEOMETRY (The Thick Tire) ---
         const moebiusVolumeFunction = (u, v, target) => {
             u = u * Math.PI * 2; 
             v = v * Math.PI * 2; 
             
-            // INCREASED MAIN RADIUS slightly to accommodate bulk
             const R = 3.8;         
-            
-            // "RETAIN THE HEIGHT" (The Face)
             const width = 0.65;     
-            
-            // INCREASED THICKNESS (The "Tire" Bulk)
-            // Changed from 0.2 -> 0.4
             const thickness = 0.4; 
 
-            // 1. Cross-Section
             let localX = width * Math.cos(v);
             let localY = thickness * Math.sin(v);
 
-            // 2. Twist
             const twistAngle = u / 2;
             let twistedX = localX * Math.cos(twistAngle) - localY * Math.sin(twistAngle);
             let twistedY = localX * Math.sin(twistAngle) + localY * Math.cos(twistAngle);
 
-            // 3. Map to Torus
             const finalX = (R + twistedX) * Math.cos(u);
             const finalZ = (R + twistedX) * Math.sin(u);
             const finalY = twistedY;
@@ -79,7 +154,7 @@
 
         const geometry = new ParametricGeometry(moebiusVolumeFunction, 140, 40);
 
-        // --- 3. MATERIALS ---
+        // --- 4. MATERIALS ---
         const material = new THREE.MeshStandardMaterial({ 
             color: 0xffffff,        
             roughness: 0.9,         
@@ -94,7 +169,6 @@
             opacity: 0.08           
         });
 
-        // --- 4. SCENE GRAPH ---
         const moebiusMesh = new THREE.Mesh(geometry, material);
         const wireframeMesh = new THREE.Mesh(geometry, wireframeMaterial);
         
@@ -114,12 +188,46 @@
         scene.add(group);
         scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-        // --- 6. ORIENTATION ---
+        // --- 6. INITIAL ORIENTATION ---
         group.scale.set(0.7, 0.7, 0.7);
-        group.rotation.x = THREE.MathUtils.degToRad(12); 
+        // Start Angle (Looking from side/tilted)
+        const START_ANGLE = THREE.MathUtils.degToRad(12);
+        // End Angle (Looking from top/donut)
+        const END_ANGLE = THREE.MathUtils.degToRad(90);
+
+        group.rotation.x = START_ANGLE; 
+
+        // --- 7. SCROLL INTERACTION LOGIC ---
+        const alphabetContainer = document.getElementById('alphabet-container');
+        const scrollHint = document.getElementById('scroll-hint');
+
+        window.addEventListener('scroll', () => {
+            // How far have we scrolled?
+            const scrollY = window.scrollY;
+            const viewportHeight = window.innerHeight;
+            
+            // Define the "Scroll Zone"
+            // We want the rotation to finish when we have scrolled 1 full viewport height.
+            // value goes from 0.0 to 1.0
+            let progress = Math.min(scrollY / viewportHeight, 1);
+
+            // Interpolate rotation:
+            // Current = Start + (Difference * progress)
+            group.rotation.x = START_ANGLE + (END_ANGLE - START_ANGLE) * progress;
+
+            // UI Visibility Logic
+            if (progress > 0.85) {
+                // If we are almost at the donut view, show letters
+                alphabetContainer.classList.add('visible');
+                scrollHint.style.opacity = '0'; // Hide "Scroll Down" hint
+            } else {
+                alphabetContainer.classList.remove('visible');
+                scrollHint.style.opacity = '1';
+            }
+        });
 
 
-        // --- 7. RESPONSIVENESS LOGIC ---
+        // --- 8. RESPONSIVENESS ---
         function adjustCameraDistance() {
             const aspect = window.innerWidth / window.innerHeight;
             const baseDistance = 12; 
@@ -138,10 +246,10 @@
             adjustCameraDistance();
         });
 
-
-        // --- 8. ANIMATION LOOP ---
+        // --- 9. ANIMATION LOOP ---
         function animate() {
             requestAnimationFrame(animate);
+            // Constant slow spin (Turntable effect)
             group.rotation.y += 0.005; 
             renderer.render(scene, camera);
         }
