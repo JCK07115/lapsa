@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Möbius Alphabet – Parametric Indented Torus</title>
+    <title>Möbius Alphabet – Flowing Indented Torus</title>
     <style>
         body { 
             margin: 0; 
@@ -124,35 +124,41 @@
             gridTarget.appendChild(a);
         });
 
-        // --- 3. GEOMETRY – torus with vertical indents (Parametric) ---
-        const indentedTorusFunction = (u, v, target) => {
-            u = u * Math.PI * 2; 
-            v = v * Math.PI * 2; 
-            
-            const R = 3.8;      // main radius
-            const r = 0.55;     // tube radius
-            const indent = 0.8; // how deep to pull two opposite sides down
+        // --- 3. GEOMETRY – indented torus with animated cross-section phase ---
+        const SEG_U = 72;
+        const SEG_V = 18;
 
-            // Basic torus geometry
-            const cosu = Math.cos(u);
-            const sinu = Math.sin(u);
-            const cosv = Math.cos(v);
-            const sinv = Math.sin(v);
+        const R = 3.8;       // main radius
+        const r = 0.55;      // tube radius
+        const INDENT = 1.1;  // depth of the two dips
+
+        // Compute a single point on the indented torus, with a phase applied to v
+        function indentedTorusPoint(u, v, phase, target) {
+            // u, v in [0,1]
+            const TWO_PI = Math.PI * 2;
+            const up = u * TWO_PI;
+            const vp = (v + phase) * TWO_PI; // phase only affects cross-section
+
+            const cosu = Math.cos(up),  sinu = Math.sin(up);
+            const cosv = Math.cos(vp),  sinv = Math.sin(vp);
 
             let x = (R + r * cosv) * cosu;
             let z = (R + r * cosv) * sinu;
-
-            // Vertical position: base circle around the tube
             let y = r * sinv;
 
-            // Add vertical dips at u = 0, π (two opposite points)
-            const dip = (1 - Math.cos(2 * u)) * 0.5; // 0 → 1 → 0 twice around loop
-            y -= indent * dip;
+            // Vertical dips at u = 0, π (two opposite points)
+            const dip = (1 - Math.cos(2 * up)) * 0.5; // 0 → 1 → 0 twice around loop
+            y -= INDENT * dip;
 
             target.set(x, y, z);
-        };
+        }
 
-        const geometry = new ParametricGeometry(indentedTorusFunction, 100, 28);
+        // Initial geometry (phase = 0)
+        const geometry = new ParametricGeometry(
+            (u, v, target) => indentedTorusPoint(u, v, 0.0, target),
+            SEG_U,
+            SEG_V
+        );
 
         // --- 4. MATERIAL – white wireframe only ---
         const wireframeMaterial = new THREE.MeshBasicMaterial({
@@ -167,7 +173,7 @@
         const group = new THREE.Group();
         group.add(torusMesh);
         
-        // Lights kept but have no effect on MeshBasic (harmless)
+        // Lights kept but have no effect on MeshBasic
         const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
         mainLight.position.set(5, 10, 7); 
         group.add(mainLight);
@@ -179,12 +185,12 @@
         scene.add(group);
         scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-        // --- 5. ORIENTATION ---
+        // --- 5. ORIENTATION – exact eye-level (no x-tilt), centered ∞ ---
         group.scale.set(0.7, 0.7, 0.7);
-        const BASE_TILT_X = THREE.MathUtils.degToRad(20);
-        group.rotation.x = BASE_TILT_X; // fixed tilt, no scroll-driven change
+        group.rotation.x = 0;              // eye-level
+        group.rotation.z = 0;              // keep horizontal; you can tweak later
 
-        // --- 6. SCROLL: only toggles alphabet visibility / hint ---
+        // --- 6. SCROLL: only UI visibility ---
         const alphabetContainer = document.getElementById('alphabet-container');
         const scrollHint = document.getElementById('scroll-hint');
 
@@ -221,10 +227,34 @@
             adjustCameraDistance();
         });
 
-        // --- 8. ANIMATION LOOP – rotate only about Y ---
+        // --- 8. FLOW ANIMATION ALONG THE TORUS (no global rotation) ---
+        const positionAttr = geometry.attributes.position;
+        const tmp = new THREE.Vector3();
+        let phase = 0;
+
+        function updateFlow(phase) {
+            let index = 0;
+            for (let i = 0; i <= SEG_U; i++) {
+                const u = i / SEG_U;
+                for (let j = 0; j <= SEG_V; j++) {
+                    const v = j / SEG_V;
+                    indentedTorusPoint(u, v, phase, tmp);
+                    positionAttr.array[index * 3 + 0] = tmp.x;
+                    positionAttr.array[index * 3 + 1] = tmp.y;
+                    positionAttr.array[index * 3 + 2] = tmp.z;
+                    index++;
+                }
+            }
+            positionAttr.needsUpdate = true;
+        }
+
         function animate() {
             requestAnimationFrame(animate);
-            group.rotation.y += 0.005; 
+
+            // Advance phase for "flow" around the tube
+            phase = (phase + 0.003) % 1.0;
+            updateFlow(phase);
+
             renderer.render(scene, camera);
         }
 
