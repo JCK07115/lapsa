@@ -1,29 +1,23 @@
-<!DOCTYPE html>
+iter/3/paratorus.html<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Möbius Alphabet</title>
+    <title>Möbius Alphabet – Parametric Indented Ring</title>
     <style>
-        /* 1. SCROLL SETUP */
         body { 
             margin: 0; 
             background-color: #1a1a1a; 
-            height: 250vh; /* Make page tall to allow scrolling */
+            height: 250vh;
             font-family: 'Courier New', Courier, monospace;
         }
-
-        /* 2. FIXED CANVAS */
-        /* The 3D view stays put while we scroll "over" it */
         canvas { 
             display: block; 
             position: fixed;
             top: 0;
             left: 0;
-            z-index: -1; /* Behind everything */
+            z-index: -1;
         }
-
-        /* 3. ALPHABET OVERLAY */
         #alphabet-container {
             position: fixed;
             top: 50%;
@@ -32,24 +26,20 @@
             width: 80%;
             max-width: 600px;
             text-align: center;
-            opacity: 0; /* Hidden by default */
+            opacity: 0;
             transition: opacity 0.5s ease;
-            pointer-events: none; /* Click-through when hidden */
+            pointer-events: none;
         }
-
-        /* When we add this class via JS, it becomes visible */
         #alphabet-container.visible {
             opacity: 1;
-            pointer-events: auto; /* Enable clicking links */
+            pointer-events: auto;
         }
-
         .letter-grid {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
             gap: 15px;
         }
-
         .letter-link {
             color: #ffffff;
             text-decoration: none;
@@ -62,14 +52,11 @@
             border-radius: 50%;
             transition: all 0.3s;
         }
-
         .letter-link:hover {
             background: white;
             color: #1a1a1a;
             transform: scale(1.2);
         }
-
-        /* Scroll indicator helper */
         #scroll-hint {
             position: fixed;
             bottom: 30px;
@@ -93,14 +80,10 @@
 </head>
 <body>
 
-    <!-- Scroll Hint -->
     <div id="scroll-hint">SCROLL DOWN TO EXPLORE</div>
 
-    <!-- The Alphabet UI -->
     <div id="alphabet-container">
-        <div class="letter-grid" id="grid-target">
-            <!-- Letters injected via JS -->
-        </div>
+        <div class="letter-grid" id="grid-target"></div>
     </div>
 
     <script type="module">
@@ -111,72 +94,63 @@
         const scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x1a1a1a, 0.04);
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        const camera = new THREE.PerspectiveCamera(
+            45,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            100
+        );
         
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. GENERATE ALPHABET LINKS ---
+        // --- 2. ALPHABET LINKS ---
         const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         const gridTarget = document.getElementById("grid-target");
         letters.forEach(char => {
             const a = document.createElement('a');
-            a.href = "#"; // Placeholder link
+            a.href = "#";
             a.className = "letter-link";
             a.innerText = char;
             gridTarget.appendChild(a);
         });
 
-        // --- 3. GEOMETRY (The Thick Tire) ---
-        const moebiusVolumeFunction = (u, v, target) => {
+        // --- 3. GEOMETRY – indented torus via ParametricGeometry ---
+        const indentedRingFunction = (u, v, target) => {
             u = u * Math.PI * 2; 
             v = v * Math.PI * 2; 
             
-            const R = 3.8;         
-            const width = 0.65;     
-            const thickness = 0.4; 
+            const R0 = 3.6;          // base radius of ring
+            const indent = -0.7;     // negative => inward dents at two opposite points
+            const R = R0 + indent * Math.cos(2 * u); // 2 dents around loop
 
-            let localX = width * Math.cos(v);
-            let localY = thickness * Math.sin(v);
+            const r = 0.55;          // tube radius (thickness)
 
-            const twistAngle = u / 2;
-            let twistedX = localX * Math.cos(twistAngle) - localY * Math.sin(twistAngle);
-            let twistedY = localX * Math.sin(twistAngle) + localY * Math.cos(twistAngle);
+            const x = (R + r * Math.cos(v)) * Math.cos(u);
+            const z = (R + r * Math.cos(v)) * Math.sin(u);
+            const y = r * Math.sin(v);
 
-            const finalX = (R + twistedX) * Math.cos(u);
-            const finalZ = (R + twistedX) * Math.sin(u);
-            const finalY = twistedY;
-
-            target.set(finalX, finalY, finalZ);
+            target.set(x, y, z);
         };
 
-        const geometry = new ParametricGeometry(moebiusVolumeFunction, 140, 40);
+        const geometry = new ParametricGeometry(indentedRingFunction, 100, 28);
 
-        // --- 4. MATERIALS ---
-        const material = new THREE.MeshStandardMaterial({ 
-            color: 0xffffff,        
-            roughness: 0.9,         
-            metalness: 0.1,         
-            flatShading: false,
-        });
-
+        // --- 4. MATERIAL – wireframe only ---
         const wireframeMaterial = new THREE.MeshBasicMaterial({
-            color: 0x111111,        
+            color: 0xffffff,
             wireframe: true,
             transparent: true,
-            opacity: 0.08           
+            opacity: 0.9
         });
 
-        const moebiusMesh = new THREE.Mesh(geometry, material);
-        const wireframeMesh = new THREE.Mesh(geometry, wireframeMaterial);
+        const ringMesh = new THREE.Mesh(geometry, wireframeMaterial);
         
         const group = new THREE.Group();
-        group.add(moebiusMesh);
-        group.add(wireframeMesh);
+        group.add(ringMesh);
         
-        // --- 5. LIGHTING ---
+        // --- 5. LIGHTING (kept, but MeshBasic doesn't use it – harmless) ---
         const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
         mainLight.position.set(5, 10, 7); 
         group.add(mainLight);
@@ -190,42 +164,29 @@
 
         // --- 6. INITIAL ORIENTATION ---
         group.scale.set(0.7, 0.7, 0.7);
-        // Start Angle (Looking from side/tilted)
         const START_ANGLE = THREE.MathUtils.degToRad(12);
-        // End Angle (Looking from top/donut)
-        const END_ANGLE = THREE.MathUtils.degToRad(90);
-
+        const END_ANGLE   = THREE.MathUtils.degToRad(90);
         group.rotation.x = START_ANGLE; 
 
-        // --- 7. SCROLL INTERACTION LOGIC ---
+        // --- 7. SCROLL INTERACTION ---
         const alphabetContainer = document.getElementById('alphabet-container');
         const scrollHint = document.getElementById('scroll-hint');
 
         window.addEventListener('scroll', () => {
-            // How far have we scrolled?
             const scrollY = window.scrollY;
             const viewportHeight = window.innerHeight;
-            
-            // Define the "Scroll Zone"
-            // We want the rotation to finish when we have scrolled 1 full viewport height.
-            // value goes from 0.0 to 1.0
             let progress = Math.min(scrollY / viewportHeight, 1);
 
-            // Interpolate rotation:
-            // Current = Start + (Difference * progress)
             group.rotation.x = START_ANGLE + (END_ANGLE - START_ANGLE) * progress;
 
-            // UI Visibility Logic
             if (progress > 0.85) {
-                // If we are almost at the donut view, show letters
                 alphabetContainer.classList.add('visible');
-                scrollHint.style.opacity = '0'; // Hide "Scroll Down" hint
+                scrollHint.style.opacity = '0';
             } else {
                 alphabetContainer.classList.remove('visible');
                 scrollHint.style.opacity = '1';
             }
         });
-
 
         // --- 8. RESPONSIVENESS ---
         function adjustCameraDistance() {
@@ -249,7 +210,6 @@
         // --- 9. ANIMATION LOOP ---
         function animate() {
             requestAnimationFrame(animate);
-            // Constant slow spin (Turntable effect)
             group.rotation.y += 0.005; 
             renderer.render(scene, camera);
         }
