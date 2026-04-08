@@ -1,9 +1,9 @@
-iter/3/paratorus.html<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Möbius Alphabet – Parametric Indented Ring</title>
+    <title>Möbius Alphabet – Parametric Indented Torus</title>
     <style>
         body { 
             margin: 0; 
@@ -11,6 +11,7 @@ iter/3/paratorus.html<!DOCTYPE html>
             height: 250vh;
             font-family: 'Courier New', Courier, monospace;
         }
+
         canvas { 
             display: block; 
             position: fixed;
@@ -18,6 +19,7 @@ iter/3/paratorus.html<!DOCTYPE html>
             left: 0;
             z-index: -1;
         }
+
         #alphabet-container {
             position: fixed;
             top: 50%;
@@ -30,16 +32,19 @@ iter/3/paratorus.html<!DOCTYPE html>
             transition: opacity 0.5s ease;
             pointer-events: none;
         }
+
         #alphabet-container.visible {
             opacity: 1;
             pointer-events: auto;
         }
+
         .letter-grid {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
             gap: 15px;
         }
+
         .letter-link {
             color: #ffffff;
             text-decoration: none;
@@ -52,11 +57,13 @@ iter/3/paratorus.html<!DOCTYPE html>
             border-radius: 50%;
             transition: all 0.3s;
         }
+
         .letter-link:hover {
             background: white;
             color: #1a1a1a;
             transform: scale(1.2);
         }
+
         #scroll-hint {
             position: fixed;
             bottom: 30px;
@@ -117,27 +124,37 @@ iter/3/paratorus.html<!DOCTYPE html>
             gridTarget.appendChild(a);
         });
 
-        // --- 3. GEOMETRY – indented torus via ParametricGeometry ---
-        const indentedRingFunction = (u, v, target) => {
+        // --- 3. GEOMETRY – torus with vertical indents (Parametric) ---
+        const indentedTorusFunction = (u, v, target) => {
             u = u * Math.PI * 2; 
             v = v * Math.PI * 2; 
             
-            const R0 = 3.6;          // base radius of ring
-            const indent = -0.7;     // negative => inward dents at two opposite points
-            const R = R0 + indent * Math.cos(2 * u); // 2 dents around loop
+            const R = 3.8;      // main radius
+            const r = 0.55;     // tube radius
+            const indent = 0.8; // how deep to pull two opposite sides down
 
-            const r = 0.55;          // tube radius (thickness)
+            // Basic torus geometry
+            const cosu = Math.cos(u);
+            const sinu = Math.sin(u);
+            const cosv = Math.cos(v);
+            const sinv = Math.sin(v);
 
-            const x = (R + r * Math.cos(v)) * Math.cos(u);
-            const z = (R + r * Math.cos(v)) * Math.sin(u);
-            const y = r * Math.sin(v);
+            let x = (R + r * cosv) * cosu;
+            let z = (R + r * cosv) * sinu;
+
+            // Vertical position: base circle around the tube
+            let y = r * sinv;
+
+            // Add vertical dips at u = 0, π (two opposite points)
+            const dip = (1 - Math.cos(2 * u)) * 0.5; // 0 → 1 → 0 twice around loop
+            y -= indent * dip;
 
             target.set(x, y, z);
         };
 
-        const geometry = new ParametricGeometry(indentedRingFunction, 100, 28);
+        const geometry = new ParametricGeometry(indentedTorusFunction, 100, 28);
 
-        // --- 4. MATERIAL – wireframe only ---
+        // --- 4. MATERIAL – white wireframe only ---
         const wireframeMaterial = new THREE.MeshBasicMaterial({
             color: 0xffffff,
             wireframe: true,
@@ -145,12 +162,12 @@ iter/3/paratorus.html<!DOCTYPE html>
             opacity: 0.9
         });
 
-        const ringMesh = new THREE.Mesh(geometry, wireframeMaterial);
+        const torusMesh = new THREE.Mesh(geometry, wireframeMaterial);
         
         const group = new THREE.Group();
-        group.add(ringMesh);
+        group.add(torusMesh);
         
-        // --- 5. LIGHTING (kept, but MeshBasic doesn't use it – harmless) ---
+        // Lights kept but have no effect on MeshBasic (harmless)
         const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
         mainLight.position.set(5, 10, 7); 
         group.add(mainLight);
@@ -162,22 +179,19 @@ iter/3/paratorus.html<!DOCTYPE html>
         scene.add(group);
         scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-        // --- 6. INITIAL ORIENTATION ---
+        // --- 5. ORIENTATION ---
         group.scale.set(0.7, 0.7, 0.7);
-        const START_ANGLE = THREE.MathUtils.degToRad(12);
-        const END_ANGLE   = THREE.MathUtils.degToRad(90);
-        group.rotation.x = START_ANGLE; 
+        const BASE_TILT_X = THREE.MathUtils.degToRad(20);
+        group.rotation.x = BASE_TILT_X; // fixed tilt, no scroll-driven change
 
-        // --- 7. SCROLL INTERACTION ---
+        // --- 6. SCROLL: only toggles alphabet visibility / hint ---
         const alphabetContainer = document.getElementById('alphabet-container');
         const scrollHint = document.getElementById('scroll-hint');
 
         window.addEventListener('scroll', () => {
             const scrollY = window.scrollY;
             const viewportHeight = window.innerHeight;
-            let progress = Math.min(scrollY / viewportHeight, 1);
-
-            group.rotation.x = START_ANGLE + (END_ANGLE - START_ANGLE) * progress;
+            const progress = Math.min(scrollY / viewportHeight, 1);
 
             if (progress > 0.85) {
                 alphabetContainer.classList.add('visible');
@@ -188,7 +202,7 @@ iter/3/paratorus.html<!DOCTYPE html>
             }
         });
 
-        // --- 8. RESPONSIVENESS ---
+        // --- 7. RESPONSIVENESS ---
         function adjustCameraDistance() {
             const aspect = window.innerWidth / window.innerHeight;
             const baseDistance = 12; 
@@ -207,7 +221,7 @@ iter/3/paratorus.html<!DOCTYPE html>
             adjustCameraDistance();
         });
 
-        // --- 9. ANIMATION LOOP ---
+        // --- 8. ANIMATION LOOP – rotate only about Y ---
         function animate() {
             requestAnimationFrame(animate);
             group.rotation.y += 0.005; 
