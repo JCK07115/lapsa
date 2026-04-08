@@ -185,10 +185,13 @@
         scene.add(group);
         scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-        // --- 5. ORIENTATION – exact eye-level (no x-tilt), centered ∞ ---
+        // --- 5. ORIENTATION – lock an ∞ silhouette using only Y rotation ---
         group.scale.set(0.7, 0.7, 0.7);
-        group.rotation.x = 0;              // eye-level
-        group.rotation.z = 0;              // keep horizontal; you can tweak later
+
+        // Try ~35° about Y; adjust to taste (e.g. 30–45)
+        group.rotation.x = THREE.MathUtils.degToRad(0);
+        group.rotation.y = THREE.MathUtils.degToRad(40);
+        group.rotation.z = THREE.MathUtils.degToRad(1);
 
         // --- 6. SCROLL: only UI visibility ---
         const alphabetContainer = document.getElementById('alphabet-container');
