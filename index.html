@@ -36,12 +36,10 @@
 
         // --- 1. SETUP ---
         const scene = new THREE.Scene();
-        // Soft fog to blend the object into the background
         scene.fog = new THREE.FogExp2(0x1a1a1a, 0.04);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 0, 12);
-
+        
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
@@ -49,20 +47,24 @@
 
         // --- 2. THE GEOMETRY MATH ---
         const moebiusVolumeFunction = (u, v, target) => {
-            // u: angle around the main loop (0..2PI)
-            // v: angle around the cross-section (0..2PI)
             u = u * Math.PI * 2; 
             v = v * Math.PI * 2; 
             
-            const R = 3.5;         // Main Radius
-            const width = 0.6;     // Strip Width
-            const thickness = 0.2; // Strip Thickness (Volume)
+            // INCREASED MAIN RADIUS slightly to accommodate bulk
+            const R = 3.8;         
+            
+            // "RETAIN THE HEIGHT" (The Face)
+            const width = 0.65;     
+            
+            // INCREASED THICKNESS (The "Tire" Bulk)
+            // Changed from 0.2 -> 0.4
+            const thickness = 0.4; 
 
-            // 1. Define Cross-Section (Ellipse)
+            // 1. Cross-Section
             let localX = width * Math.cos(v);
             let localY = thickness * Math.sin(v);
 
-            // 2. Apply Twist (u/2)
+            // 2. Twist
             const twistAngle = u / 2;
             let twistedX = localX * Math.cos(twistAngle) - localY * Math.sin(twistAngle);
             let twistedY = localX * Math.sin(twistAngle) + localY * Math.cos(twistAngle);
@@ -75,22 +77,21 @@
             target.set(finalX, finalY, finalZ);
         };
 
-        // Segments: 140 (Lengthwise), 40 (Cross-section)
         const geometry = new ParametricGeometry(moebiusVolumeFunction, 140, 40);
 
         // --- 3. MATERIALS ---
         const material = new THREE.MeshStandardMaterial({ 
             color: 0xffffff,        
-            roughness: 0.9,         // Matte finish
+            roughness: 0.9,         
             metalness: 0.1,         
             flatShading: false,
         });
 
         const wireframeMaterial = new THREE.MeshBasicMaterial({
-            color: 0x111111,        // Dark Grey Lines
+            color: 0x111111,        
             wireframe: true,
             transparent: true,
-            opacity: 0.08           // Subtle opacity
+            opacity: 0.08           
         });
 
         // --- 4. SCENE GRAPH ---
@@ -102,7 +103,6 @@
         group.add(wireframeMesh);
         
         // --- 5. LIGHTING ---
-        // Lights attached to group so shadows don't "move" as it spins
         const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
         mainLight.position.set(5, 10, 7); 
         group.add(mainLight);
@@ -118,19 +118,33 @@
         group.scale.set(0.7, 0.7, 0.7);
         group.rotation.x = THREE.MathUtils.degToRad(12); 
 
-        // --- 7. ANIMATION LOOP ---
-        function animate() {
-            requestAnimationFrame(animate);
-            group.rotation.y += 0.005; // Slow spin
-            renderer.render(scene, camera);
-        }
 
-        // Handle window resizing
+        // --- 7. RESPONSIVENESS LOGIC ---
+        function adjustCameraDistance() {
+            const aspect = window.innerWidth / window.innerHeight;
+            const baseDistance = 12; 
+            if (aspect < 1) {
+                camera.position.set(0, 0, baseDistance / aspect);
+            } else {
+                camera.position.set(0, 0, baseDistance);
+            }
+        }
+        adjustCameraDistance();
+
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            adjustCameraDistance();
         });
+
+
+        // --- 8. ANIMATION LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+            group.rotation.y += 0.005; 
+            renderer.render(scene, camera);
+        }
 
         animate();
     </script>
