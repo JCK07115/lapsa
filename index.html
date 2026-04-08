@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Möbius Tube Demo</title>
+    <title>Möbius Demo</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #1a1a1a; }
-        canvas { display: block; }
-        #info {
-            position: absolute;
-            top: 20px;
-            width: 100%;
-            text-align: center;
-            color: #444;
-            font-family: sans-serif;
-            pointer-events: none;
-            font-size: 14px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
+        /* 
+           Background set to a dark charcoal (#1a1a1a). 
+           Change this hex code to match your site theme.
+        */
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #1a1a1a; 
+        }
+        canvas { 
+            display: block; 
         }
     </style>
     
+    <!-- Load Three.js from CDN (No install required) -->
     <script type="importmap">
         {
             "imports": {
@@ -31,66 +30,70 @@
     </script>
 </head>
 <body>
-    <div id="info">Möbius Tube</div>
-
     <script type="module">
         import * as THREE from 'three';
         import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
 
-        // 1. SCENE
+        // --- 1. SETUP ---
         const scene = new THREE.Scene();
+        // Soft fog to blend the object into the background
         scene.fog = new THREE.FogExp2(0x1a1a1a, 0.04);
 
-        // 2. CAMERA
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
         camera.position.set(0, 0, 12);
 
-        // 3. RENDERER
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        // 4. GEOMETRY MATH (Volumetric Tube)
-        // u = angle around the main ring (0..2PI)
-        // v = angle around the tube cross-section (0..2PI)
-        const moebiusTubeFunction = (u, v, target) => {
+        // --- 2. THE GEOMETRY MATH ---
+        const moebiusVolumeFunction = (u, v, target) => {
+            // u: angle around the main loop (0..2PI)
+            // v: angle around the cross-section (0..2PI)
             u = u * Math.PI * 2; 
             v = v * Math.PI * 2; 
             
-            const R = 3.5;  // Radius of the main loop
-            const r = 0.45; // Radius of the tube (Reduced width/thickness)
+            const R = 3.5;         // Main Radius
+            const width = 0.6;     // Strip Width
+            const thickness = 0.2; // Strip Thickness (Volume)
 
-            // The "Twist": We add u/2 to the v angle.
-            // As we go around the main loop (u), the tube rotates 180 degrees (u/2).
-            const weirdness = t => t; // Identity function for standard circular cross section
+            // 1. Define Cross-Section (Ellipse)
+            let localX = width * Math.cos(v);
+            let localY = thickness * Math.sin(v);
 
-            const x = (R + r * Math.cos(v + u / 2)) * Math.cos(u);
-            const z = (R + r * Math.cos(v + u / 2)) * Math.sin(u);
-            const y = r * Math.sin(v + u / 2);
+            // 2. Apply Twist (u/2)
+            const twistAngle = u / 2;
+            let twistedX = localX * Math.cos(twistAngle) - localY * Math.sin(twistAngle);
+            let twistedY = localX * Math.sin(twistAngle) + localY * Math.cos(twistAngle);
 
-            target.set(x, y, z);
+            // 3. Map to Torus
+            const finalX = (R + twistedX) * Math.cos(u);
+            const finalZ = (R + twistedX) * Math.sin(u);
+            const finalY = twistedY;
+
+            target.set(finalX, finalY, finalZ);
         };
 
-        // Increased segments for smoothness
-        const geometry = new ParametricGeometry(moebiusTubeFunction, 120, 40);
+        // Segments: 140 (Lengthwise), 40 (Cross-section)
+        const geometry = new ParametricGeometry(moebiusVolumeFunction, 140, 40);
 
-        // 5. MATERIALS
+        // --- 3. MATERIALS ---
         const material = new THREE.MeshStandardMaterial({ 
             color: 0xffffff,        
-            roughness: 1.0,         // Fully Matte (No shine)
-            metalness: 0.0,         
+            roughness: 0.9,         // Matte finish
+            metalness: 0.1,         
             flatShading: false,
         });
 
         const wireframeMaterial = new THREE.MeshBasicMaterial({
-            color: 0x111111,        // Very dark grey
+            color: 0x111111,        // Dark Grey Lines
             wireframe: true,
             transparent: true,
-            opacity: 0.08           
+            opacity: 0.08           // Subtle opacity
         });
 
-        // 6. MESH & GROUP
+        // --- 4. SCENE GRAPH ---
         const moebiusMesh = new THREE.Mesh(geometry, material);
         const wireframeMesh = new THREE.Mesh(geometry, wireframeMaterial);
         
@@ -98,35 +101,31 @@
         group.add(moebiusMesh);
         group.add(wireframeMesh);
         
-        // 7. LIGHTING (Attached to GROUP, not SCENE)
-        // By adding the light to the group, the light rotates WITH the object.
-        // This eliminates the "moving highlight" effect.
-        
-        const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
-        mainLight.position.set(5, 10, 7); // Fixed relative to the object
+        // --- 5. LIGHTING ---
+        // Lights attached to group so shadows don't "move" as it spins
+        const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        mainLight.position.set(5, 10, 7); 
         group.add(mainLight);
 
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
         fillLight.position.set(-5, -5, -5); 
         group.add(fillLight);
 
         scene.add(group);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-        // Ambient light for general brightness (This stays in scene)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-        scene.add(ambientLight);
-
-        // 8. ORIENTATION & SCALE
-        group.scale.set(0.7, 0.7, 0.7);      
+        // --- 6. ORIENTATION ---
+        group.scale.set(0.7, 0.7, 0.7);
         group.rotation.x = THREE.MathUtils.degToRad(12); 
 
-        // 9. ANIMATION
+        // --- 7. ANIMATION LOOP ---
         function animate() {
             requestAnimationFrame(animate);
-            group.rotation.y += 0.005;
+            group.rotation.y += 0.005; // Slow spin
             renderer.render(scene, camera);
         }
 
+        // Handle window resizing
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
