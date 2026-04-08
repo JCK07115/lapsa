@@ -1,87 +1,323 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Möbius Alphabet</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Torus</title>
     <style>
-        /* 1. SCROLL SETUP */
-        body { 
-            margin: 0; 
-            background-color: #1a1a1a; 
-            height: 250vh; /* Make page tall to allow scrolling */
-            font-family: 'Courier New', Courier, monospace;
+        :root {
+            --bg: #050609;
+            --text: #f5f5f7;
+            --muted: #a3a3b2;
+            --accent: #21d4fd;
+            --accent-soft: rgba(33, 212, 253, 0.12);
         }
 
-        /* 2. FIXED CANVAS */
-        /* The 3D view stays put while we scroll "over" it */
-        canvas { 
-            display: block; 
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            color: var(--text);
+            background: radial-gradient(circle at top, #111827, #020617 60%);
+            overflow: hidden;
+        }
+
+        /* Canvas as background */
+        canvas {
             position: fixed;
-            top: 0;
-            left: 0;
-            z-index: -1; /* Behind everything */
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            z-index: -2;
         }
 
-        /* 3. ALPHABET OVERLAY */
-        #alphabet-container {
+        /* Dark overlay to make text readable */
+        .backdrop {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-            max-width: 600px;
-            text-align: center;
-            opacity: 0; /* Hidden by default */
-            transition: opacity 0.5s ease;
-            pointer-events: none; /* Click-through when hidden */
+            inset: 0;
+            background: radial-gradient(circle at top, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.85));
+            z-index: -1;
         }
 
-        /* When we add this class via JS, it becomes visible */
-        #alphabet-container.visible {
-            opacity: 1;
-            pointer-events: auto; /* Enable clicking links */
+        /* Page layout */
+        .page {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            padding: 24px 20px 40px;
+            display: flex;
+            flex-direction: column;
         }
 
-        .letter-grid {
+        .page-inner {
+            max-width: 1120px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* Nav */
+        .nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .logo-mark {
+            width: 24px;
+            height: 24px;
+            border-radius: 999px;
+            background: conic-gradient(from 180deg, #21d4fd, #b721ff, #21d4fd);
+            box-shadow: 0 0 20px rgba(33, 212, 253, 0.7);
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            font-size: 14px;
+        }
+
+        .nav-link {
+            color: var(--muted);
+            text-decoration: none;
+            transition: color 0.2s ease, opacity 0.2s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--text);
+            opacity: 0.9;
+        }
+
+        .nav-cta {
+            padding: 8px 16px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            color: var(--text);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            backdrop-filter: blur(12px);
+        }
+
+        /* Hero */
+        .hero {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding-top: 40px;
+            padding-bottom: 40px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 4px 10px 4px 4px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            font-size: 11px;
+            color: var(--muted);
+            backdrop-filter: blur(10px);
+            margin-bottom: 16px;
+        }
+
+        .badge-pill {
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(33, 212, 253, 0.16);
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+            gap: 48px;
+            align-items: center;
+        }
+
+        .hero-heading {
+            font-size: clamp(36px, 5vw, 56px);
+            line-height: 1.05;
+            letter-spacing: -0.04em;
+            margin: 0 0 16px;
+        }
+
+        .hero-sub {
+            font-size: 16px;
+            color: var(--muted);
+            max-width: 34rem;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .hero-cta-row {
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
-            gap: 15px;
+            gap: 12px;
+            align-items: center;
         }
 
-        .letter-link {
-            color: #ffffff;
-            text-decoration: none;
-            font-size: 24px;
-            font-weight: bold;
-            width: 40px;
-            height: 40px;
-            line-height: 40px;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 50%;
-            transition: all 0.3s;
+        .btn-primary {
+            padding: 11px 20px;
+            border-radius: 999px;
+            border: none;
+            background: linear-gradient(135deg, #21d4fd, #b721ff);
+            color: #0b1120;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(33, 212, 253, 0.35);
         }
 
-        .letter-link:hover {
-            background: white;
-            color: #1a1a1a;
-            transform: scale(1.2);
+        .btn-secondary {
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            background: rgba(15, 23, 42, 0.8);
+            color: var(--muted);
+            font-size: 13px;
+            cursor: pointer;
         }
 
-        /* Scroll indicator helper */
-        #scroll-hint {
-            position: fixed;
-            bottom: 30px;
-            width: 100%;
-            text-align: center;
-            color: rgba(255,255,255,0.3);
+        .hero-footnote {
+            margin-top: 18px;
             font-size: 12px;
-            pointer-events: none;
-            transition: opacity 0.3s;
+            color: var(--muted);
+        }
+
+        .hero-footnote strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .hero-right {
+            align-self: stretch;
+            border-radius: 24px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: radial-gradient(circle at 20% 0, rgba(33, 212, 253, 0.16), rgba(15, 23, 42, 0.95));
+            padding: 18px 18px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            backdrop-filter: blur(22px);
+            box-shadow:
+                0 40px 80px rgba(15, 23, 42, 0.9),
+                0 0 40px rgba(33, 212, 253, 0.3);
+        }
+
+        .hero-right-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .pill {
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.4);
+        }
+
+        .metric-card {
+            padding: 10px 10px 12px;
+            border-radius: 18px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .metric-label {
+            color: var(--muted);
+        }
+
+        .metric-value {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .metric-value span {
+            font-size: 11px;
+            color: var(--muted);
+            margin-left: 4px;
+        }
+
+        .hero-right-footer {
+            font-size: 11px;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 999px;
+            background: var(--accent);
+            box-shadow: 0 0 8px rgba(33, 212, 253, 0.8);
+            margin-right: 6px;
+        }
+
+        /* Responsive */
+        @media (max-width: 840px) {
+            body {
+                overflow: auto;
+            }
+
+            .hero-grid {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 32px;
+            }
+
+            .hero-right {
+                order: -1;
+            }
+
+            .nav-links {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page {
+                padding: 16px 14px 32px;
+            }
+            .hero-sub {
+                font-size: 14px;
+            }
+            .hero-right {
+                border-radius: 18px;
+            }
         }
     </style>
-    
+
     <script type="importmap">
         {
             "imports": {
@@ -92,169 +328,192 @@
     </script>
 </head>
 <body>
+    <!-- Three.js canvas is injected by JS -->
+    <div class="backdrop"></div>
 
-    <!-- Scroll Hint -->
-    <div id="scroll-hint">SCROLL DOWN TO EXPLORE</div>
+    <div class="page">
+        <div class="page-inner">
+            <header class="nav">
+                <div class="logo">
+                    <div class="logo-mark"></div>
+                    <span>Torus</span>
+                </div>
+                <nav class="nav-links">
+                    <a href="#product" class="nav-link">Product</a>
+                    <a href="#use-cases" class="nav-link">Use cases</a>
+                    <a href="#docs" class="nav-link">Docs</a>
+                </nav>
+                <a href="#early-access" class="nav-cta">Request access</a>
+            </header>
 
-    <!-- The Alphabet UI -->
-    <div id="alphabet-container">
-        <div class="letter-grid" id="grid-target">
-            <!-- Letters injected via JS -->
+            <main class="hero">
+                <div class="hero-grid">
+                    <div>
+                        <div class="badge">
+                            <span class="badge-pill">Early access</span>
+                            <span>Secure, non-linear data surfaces for AI</span>
+                        </div>
+                        <h1 class="hero-heading">
+                            Reshape how your models move through data.
+                        </h1>
+                        <p class="hero-sub">
+                            Torus turns fragmented input streams into a continuous, topologically aware surface
+                            your AI can traverse—so context, state, and structure never fall through the cracks.
+                        </p>
+
+                        <div class="hero-cta-row">
+                            <button class="btn-primary">Request early access</button>
+                            <button class="btn-secondary">View interactive demo</button>
+                        </div>
+
+                        <p class="hero-footnote">
+                            <strong>For advanced stacks.</strong> Built for teams working with multi-modal,
+                            long-context, or streaming workloads.
+                        </p>
+                    </div>
+
+                    <aside class="hero-right">
+                        <div class="hero-right-header">
+                            <span>Topology-aware buffer</span>
+                            <span class="pill">Live preview</span>
+                        </div>
+                        <div class="metric-card">
+                            <div>
+                                <div class="metric-label">Continuity score</div>
+                                <div class="metric-value">0.996<span>/ 1.0</span></div>
+                            </div>
+                            <div>
+                                <div class="metric-label">Context retention</div>
+                                <div class="metric-value">+42%<span>vs. baseline</span></div>
+                            </div>
+                            <div>
+                                <div class="metric-label">Latency impact</div>
+                                <div class="metric-value">3.4ms<span>p95</span></div>
+                            </div>
+                            <div>
+                                <div class="metric-label">Integrations</div>
+                                <div class="metric-value">8<span>runtimes</span></div>
+                            </div>
+                        </div>
+                        <div class="hero-right-footer">
+                            <div>
+                                <span class="dot"></span>
+                                Surface stitched in real time
+                            </div>
+                            <div>GPU optional • <span style="color:var(--accent)">SDK & API</span></div>
+                        </div>
+                    </aside>
+                </div>
+            </main>
         </div>
     </div>
 
     <script type="module">
-        import * as THREE from 'three';
-        import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
+        import * as THREE from "three";
+        import { ParametricGeometry } from "three/addons/geometries/ParametricGeometry.js";
 
-        // --- 1. SETUP ---
+        // 1. SCENE
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x1a1a1a, 0.04);
+        scene.fog = new THREE.FogExp2(0x050609, 0.04);
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        
+        // 2. CAMERA
+        const camera = new THREE.PerspectiveCamera(
+            45,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            100
+        );
+        camera.position.set(0, 0, 12);
+
+        // 3. RENDERER
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. GENERATE ALPHABET LINKS ---
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-        const gridTarget = document.getElementById("grid-target");
-        letters.forEach(char => {
-            const a = document.createElement('a');
-            a.href = "#"; // Placeholder link
-            a.className = "letter-link";
-            a.innerText = char;
-            gridTarget.appendChild(a);
-        });
+        // 4. GEOMETRY (Möbius-like tube)
+        const moebiusTubeFunction = (u, v, target) => {
+            u = u * Math.PI * 2;
+            v = v * Math.PI * 2;
 
-        // --- 3. GEOMETRY (The Thick Tire) ---
-        const moebiusVolumeFunction = (u, v, target) => {
-            u = u * Math.PI * 2; 
-            v = v * Math.PI * 2; 
-            
-            const R = 3.8;         
-            const width = 0.65;     
-            const thickness = 0.4; 
+            const R = 3.8;
+            const r = 0.45;
 
-            let localX = width * Math.cos(v);
-            let localY = thickness * Math.sin(v);
+            const x = (R + r * Math.cos(v + u / 2)) * Math.cos(u);
+            const z = (R + r * Math.cos(v + u / 2)) * Math.sin(u);
+            const y = r * Math.sin(v + u / 2);
 
-            const twistAngle = u / 2;
-            let twistedX = localX * Math.cos(twistAngle) - localY * Math.sin(twistAngle);
-            let twistedY = localX * Math.sin(twistAngle) + localY * Math.cos(twistAngle);
-
-            const finalX = (R + twistedX) * Math.cos(u);
-            const finalZ = (R + twistedX) * Math.sin(u);
-            const finalY = twistedY;
-
-            target.set(finalX, finalY, finalZ);
+            target.set(x, y, z);
         };
 
-        const geometry = new ParametricGeometry(moebiusVolumeFunction, 140, 40);
+        const geometry = new ParametricGeometry(moebiusTubeFunction, 140, 48);
 
-        // --- 4. MATERIALS ---
-        const material = new THREE.MeshStandardMaterial({ 
-            color: 0xffffff,        
-            roughness: 0.9,         
-            metalness: 0.1,         
-            flatShading: false,
+        // 5. MATERIALS
+        const material = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.9,
+            metalness: 0.05,
+            flatShading: false
         });
 
         const wireframeMaterial = new THREE.MeshBasicMaterial({
-            color: 0x111111,        
+            color: 0x111827,
             wireframe: true,
             transparent: true,
-            opacity: 0.08           
+            opacity: 0.12
         });
 
+        // 6. MESH & GROUP
         const moebiusMesh = new THREE.Mesh(geometry, material);
         const wireframeMesh = new THREE.Mesh(geometry, wireframeMaterial);
-        
+
         const group = new THREE.Group();
         group.add(moebiusMesh);
         group.add(wireframeMesh);
-        
-        // --- 5. LIGHTING ---
-        const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
-        mainLight.position.set(5, 10, 7); 
+
+        // 7. LIGHTING
+        const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        mainLight.position.set(5, 10, 7);
         group.add(mainLight);
 
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        fillLight.position.set(-5, -5, -5); 
+        const fillLight = new THREE.DirectionalLight(0x21d4fd, 0.8);
+        fillLight.position.set(-6, -4, -5);
         group.add(fillLight);
 
         scene.add(group);
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-        // --- 6. INITIAL ORIENTATION ---
-        group.scale.set(0.7, 0.7, 0.7);
-        // Start Angle (Looking from side/tilted)
-        const START_ANGLE = THREE.MathUtils.degToRad(12);
-        // End Angle (Looking from top/donut)
-        const END_ANGLE = THREE.MathUtils.degToRad(90);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
 
-        group.rotation.x = START_ANGLE; 
+        // 8. ORIENTATION & SCALE
+        group.scale.set(0.8, 0.8, 0.8);
+        group.rotation.x = THREE.MathUtils.degToRad(18);
 
-        // --- 7. SCROLL INTERACTION LOGIC ---
-        const alphabetContainer = document.getElementById('alphabet-container');
-        const scrollHint = document.getElementById('scroll-hint');
+        // 9. ANIMATION
+        let lastTime = 0;
+        function animate(time) {
+            const dt = (time - lastTime) / 1000;
+            lastTime = time;
 
-        window.addEventListener('scroll', () => {
-            // How far have we scrolled?
-            const scrollY = window.scrollY;
-            const viewportHeight = window.innerHeight;
-            
-            // Define the "Scroll Zone"
-            // We want the rotation to finish when we have scrolled 1 full viewport height.
-            // value goes from 0.0 to 1.0
-            let progress = Math.min(scrollY / viewportHeight, 1);
+            group.rotation.y += 0.25 * dt;
+            group.rotation.z += 0.05 * dt;
 
-            // Interpolate rotation:
-            // Current = Start + (Difference * progress)
-            group.rotation.x = START_ANGLE + (END_ANGLE - START_ANGLE) * progress;
-
-            // UI Visibility Logic
-            if (progress > 0.85) {
-                // If we are almost at the donut view, show letters
-                alphabetContainer.classList.add('visible');
-                scrollHint.style.opacity = '0'; // Hide "Scroll Down" hint
-            } else {
-                alphabetContainer.classList.remove('visible');
-                scrollHint.style.opacity = '1';
-            }
-        });
-
-
-        // --- 8. RESPONSIVENESS ---
-        function adjustCameraDistance() {
-            const aspect = window.innerWidth / window.innerHeight;
-            const baseDistance = 12; 
-            if (aspect < 1) {
-                camera.position.set(0, 0, baseDistance / aspect);
-            } else {
-                camera.position.set(0, 0, baseDistance);
-            }
-        }
-        adjustCameraDistance();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            adjustCameraDistance();
-        });
-
-        // --- 9. ANIMATION LOOP ---
-        function animate() {
-            requestAnimationFrame(animate);
-            // Constant slow spin (Turntable effect)
-            group.rotation.y += 0.005; 
             renderer.render(scene, camera);
+            requestAnimationFrame(animate);
         }
 
-        animate();
+        // 10. RESIZE
+        function onResize() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        window.addEventListener("resize", onResize);
+        onResize();
+        requestAnimationFrame(animate);
     </script>
 </body>
 </html>
