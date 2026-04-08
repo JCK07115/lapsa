@@ -3,24 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Figure-Eight Torus</title>
+    <title>Möbius Alphabet</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000000; }
-        canvas { display: block; }
-        #info {
-            position: absolute;
-            top: 20px;
+        /* 1. SCROLL SETUP */
+        body { 
+            margin: 0; 
+            background-color: #000000; /* pure black so gaps in mesh read clearly */
+            height: 250vh; /* Make page tall to allow scrolling */
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* 2. FIXED CANVAS */
+        canvas { 
+            display: block; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1; /* Behind everything */
+        }
+
+        /* 3. ALPHABET OVERLAY */
+        #alphabet-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            text-align: center;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.5s ease;
+            pointer-events: none; /* Click-through when hidden */
+        }
+
+        #alphabet-container.visible {
+            opacity: 1;
+            pointer-events: auto; /* Enable clicking links */
+        }
+
+        .letter-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .letter-link {
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 24px;
+            font-weight: bold;
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .letter-link:hover {
+            background: white;
+            color: #1a1a1a;
+            transform: scale(1.2);
+        }
+
+        /* Scroll indicator helper */
+        #scroll-hint {
+            position: fixed;
+            bottom: 30px;
             width: 100%;
             text-align: center;
-            color: #666;
-            font-family: sans-serif;
+            color: rgba(255,255,255,0.3);
+            font-size: 12px;
             pointer-events: none;
-            font-size: 14px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
+            transition: opacity 0.3s;
         }
     </style>
-
+    
     <script type="importmap">
         {
             "imports": {
@@ -31,53 +90,66 @@
     </script>
 </head>
 <body>
-    <div id="info">Figure-Eight Torus</div>
+
+    <!-- Scroll Hint -->
+    <div id="scroll-hint">SCROLL DOWN TO EXPLORE</div>
+
+    <!-- The Alphabet UI -->
+    <div id="alphabet-container">
+        <div class="letter-grid" id="grid-target">
+            <!-- Letters injected via JS -->
+        </div>
+    </div>
 
     <script type="module">
         import * as THREE from 'three';
+        import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js'; // unused now but harmless; can be removed
 
-        // Custom centerline curve: a planar figure-eight (∞)
-        class FigureEightCurve extends THREE.Curve {
-            constructor(scale = 1) {
-                super();
-                this.scale = scale;
-            }
-
-            getPoint(t, target = new THREE.Vector3()) {
-                const a = t * Math.PI * 2;
-
-                // Simple figure-eight / Lissajous-like curve
-                const x = Math.sin(a);
-                const y = 0.5 * Math.sin(2 * a); // adjust 0.5 to stretch/compress vertically
-                const z = 0;
-
-                return target.set(x, y, z).multiplyScalar(this.scale);
-            }
-        }
-
-        // 1. SCENE
+        // --- 1. SETUP ---
         const scene = new THREE.Scene();
+        // Removed fog for a crisp black background
+        // scene.fog = new THREE.FogExp2(0x1a1a1a, 0.04);
 
-        // 2. CAMERA
-        const camera = new THREE.PerspectiveCamera(
-            45,
-            window.innerWidth / window.innerHeight,
-            0.1,
-            100
-        );
-        camera.position.set(0, 0, 12);
-
-        // 3. RENDERER
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        // 4. GEOMETRY – tube around the figure-eight curve
-        const curve = new FigureEightCurve(3.0); // overall size
-        const pathSegments   = 120;  // along the curve (lower = more open)
-        const tubeRadius     = 0.4;  // thickness of the tube
-        const radialSegments = 10;   // around the tube (lower = more open)
+        // --- 2. GENERATE ALPHABET LINKS ---
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        const gridTarget = document.getElementById("grid-target");
+        letters.forEach(char => {
+            const a = document.createElement('a');
+            a.href = "#"; // Placeholder link
+            a.className = "letter-link";
+            a.innerText = char;
+            gridTarget.appendChild(a);
+        });
+
+        // --- 3. GEOMETRY (Figure‑Eight Tube, ∞‑like) ---
+
+        // Centerline curve: planar figure-eight / lemniscate-style
+        class FigureEightCurve extends THREE.Curve {
+            constructor(scale = 1) {
+                super();
+                this.scale = scale;
+            }
+            getPoint(t, target = new THREE.Vector3()) {
+                const a = t * Math.PI * 2;
+                const x = Math.sin(a);
+                const y = 0.5 * Math.sin(2 * a); // 0.5 controls vertical squeeze
+                const z = 0;
+                return target.set(x, y, z).multiplyScalar(this.scale);
+            }
+        }
+
+        const curve = new FigureEightCurve(3.0);  // overall size
+
+        const pathSegments   = 120; // along the loop (lower => sparser)
+        const tubeRadius     = 0.45; // thickness of tube
+        const radialSegments = 10;   // around tube (lower => sparser)
 
         const geometry = new THREE.TubeGeometry(
             curve,
@@ -87,8 +159,8 @@
             true // closed loop
         );
 
-        // 5. MATERIAL – pure white wireframe, background visible through gaps
-        const material = new THREE.MeshBasicMaterial({
+        // --- 4. MATERIALS (Wireframe Only) ---
+        const material = new THREE.MeshBasicMaterial({ 
             color: 0xffffff,
             wireframe: true,
             transparent: true,
@@ -96,38 +168,85 @@
         });
 
         const mesh = new THREE.Mesh(geometry, material);
-
-        // 6. GROUP
+        
         const group = new THREE.Group();
         group.add(mesh);
+        
+        // --- 5. LIGHTING ---
+        // Lights stay; MeshBasicMaterial ignores them, so they don't affect look.
+        const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        mainLight.position.set(5, 10, 7); 
+        group.add(mainLight);
+
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        fillLight.position.set(-5, -5, -5); 
+        group.add(fillLight);
+
         scene.add(group);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-        // 7. ORIENTATION – start roughly like the sample (tilted ∞)
-        group.scale.set(0.95, 0.95, 0.95);
-        group.rotation.x = THREE.MathUtils.degToRad(38);
-        group.rotation.z = THREE.MathUtils.degToRad(20);
+        // --- 6. INITIAL ORIENTATION ---
+        group.scale.set(0.7, 0.7, 0.7);
 
-        // 8. ANIMATION – slow spin so silhouette shifts (∞ → U, etc.)
+        // Start Angle (a bit tilted so rotation gives ∞, U, etc.)
+        const START_ANGLE = THREE.MathUtils.degToRad(20);
+        // End Angle (more top‑down)
+        const END_ANGLE = THREE.MathUtils.degToRad(90);
+
+        group.rotation.x = START_ANGLE; 
+        group.rotation.z = THREE.MathUtils.degToRad(15); // slight twist like your reference
+
+        // --- 7. SCROLL INTERACTION LOGIC ---
+        const alphabetContainer = document.getElementById('alphabet-container');
+        const scrollHint = document.getElementById('scroll-hint');
+
+        window.addEventListener('scroll', () => {
+            const scrollY = window.scrollY;
+            const viewportHeight = window.innerHeight;
+            
+            let progress = Math.min(scrollY / viewportHeight, 1);
+
+            // Scroll-driven tilt
+            group.rotation.x = START_ANGLE + (END_ANGLE - START_ANGLE) * progress;
+
+            if (progress > 0.85) {
+                alphabetContainer.classList.add('visible');
+                scrollHint.style.opacity = '0';
+            } else {
+                alphabetContainer.classList.remove('visible');
+                scrollHint.style.opacity = '1';
+            }
+        });
+
+
+        // --- 8. RESPONSIVENESS ---
+        function adjustCameraDistance() {
+            const aspect = window.innerWidth / window.innerHeight;
+            const baseDistance = 12; 
+            if (aspect < 1) {
+                camera.position.set(0, 0, baseDistance / aspect);
+            } else {
+                camera.position.set(0, 0, baseDistance);
+            }
+        }
+        adjustCameraDistance();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            adjustCameraDistance();
+        });
+
+        // --- 9. ANIMATION LOOP ---
         function animate() {
             requestAnimationFrame(animate);
-
-            group.rotation.y += 0.008;   // main turntable
-            group.rotation.x += 0.0015;  // slight extra wobble
-
+            // Constant slow spin (Turntable effect)
+            group.rotation.y += 0.005; 
             renderer.render(scene, camera);
         }
-
-        // 9. RESIZE
-        window.addEventListener('resize', () => {
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            camera.aspect = w / h;
-            camera.updateProjectionMatrix();
-            renderer.setSize(w, h);
-        });
 
         animate();
     </script>
 </body>
 </html>
-
