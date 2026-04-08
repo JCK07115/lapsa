@@ -125,12 +125,12 @@
         });
 
         // --- 3. GEOMETRY – indented torus with animated cross-section phase ---
-        const SEG_U = 72;
-        const SEG_V = 18;
+        const SEG_U = 40;
+        const SEG_V = 11;
 
         const R = 3.8;       // main radius
         const r = 0.55;      // tube radius
-        const INDENT = 1.1;  // depth of the two dips
+        const INDENT = 1.8;  // depth of the two dips
 
         // Compute a single point on the indented torus, with a phase applied to v
         function indentedTorusPoint(u, v, phase, target) {
@@ -189,9 +189,9 @@
         group.scale.set(0.7, 0.7, 0.7);
 
         // Try ~35° about Y; adjust to taste (e.g. 30–45)
-        group.rotation.x = THREE.MathUtils.degToRad(0);
+        group.rotation.x = THREE.MathUtils.degToRad(-8);
         group.rotation.y = THREE.MathUtils.degToRad(40);
-        group.rotation.z = THREE.MathUtils.degToRad(1);
+        group.rotation.z = THREE.MathUtils.degToRad(6);
 
         // --- 6. SCROLL: only UI visibility ---
         const alphabetContainer = document.getElementById('alphabet-container');
@@ -255,7 +255,7 @@
             requestAnimationFrame(animate);
 
             // Advance phase for "flow" around the tube
-            phase = (phase + 0.003) % 1.0;
+            phase = (phase + 0.0015) % 1.0;
             updateFlow(phase);
 
             renderer.render(scene, camera);
