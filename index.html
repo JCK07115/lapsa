@@ -417,47 +417,63 @@
         scene.fog = new THREE.FogExp2(0x050609, 0.04);
 
         // 2. CAMERA
+        const baseCameraZ = 12;
         const camera = new THREE.PerspectiveCamera(
             45,
             window.innerWidth / window.innerHeight,
             0.1,
             100
         );
-        camera.position.set(0, 0, 12);
+        camera.position.set(0, 0, baseCameraZ);
 
         // 3. RENDERER
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        // 4. GEOMETRY (Möbius-like tube)
-        const moebiusTubeFunction = (u, v, target) => {
-            u = u * Math.PI * 2;
-            v = v * Math.PI * 2;
+        // 4. GEOMETRY – volumetric Möbius strip (elliptical cross-section)
+        const moebiusStripFn = (u, v, target) => {
+            // Normalize parameters
+            u = u * Math.PI * 2;  // 0..2π around the main loop
+            v = v * Math.PI * 2;  // 0..2π around the cross-section
 
-            const R = 3.8;
-            const r = 0.45;
+            const R = 3.6;        // Radius of main loop
+            const width = 0.65;   // "Face" width of strip
+            const thickness = 0.4; // Depth (thickness) of strip
 
-            const x = (R + r * Math.cos(v + u / 2)) * Math.cos(u);
-            const z = (R + r * Math.cos(v + u / 2)) * Math.sin(u);
-            const y = r * Math.sin(v + u / 2);
+            // 1. Elliptical cross-section in local 2D space
+            let localX = width * Math.cos(v);
+            let localY = thickness * Math.sin(v);
+
+            // 2. Apply the Möbius twist (rotate ellipse by u/2)
+            const twistAngle = u / 2;
+            const cosT = Math.cos(twistAngle);
+            const sinT = Math.sin(twistAngle);
+
+            const twistedX = localX * cosT - localY * sinT;
+            const twistedY = localX * sinT + localY * cosT;
+
+            // 3. Map to world space as a loop lying flat (XZ-plane)
+            const x = (R + twistedX) * Math.cos(u);
+            const z = (R + twistedX) * Math.sin(u);
+            const y = twistedY;
 
             target.set(x, y, z);
         };
 
-        const geometry = new ParametricGeometry(moebiusTubeFunction, 140, 48);
+        // Higher segment counts for a smooth, “product-grade” surface
+        const geometry = new ParametricGeometry(moebiusStripFn, 200, 64);
 
         // 5. MATERIALS
         const material = new THREE.MeshStandardMaterial({
             color: 0xffffff,
-            roughness: 0.9,
-            metalness: 0.05,
+            roughness: 1.0,   // fully matte
+            metalness: 0.0,
             flatShading: false
         });
 
         const wireframeMaterial = new THREE.MeshBasicMaterial({
-            color: 0x111827,
+            color: 0x111827,  // dark slate
             wireframe: true,
             transparent: true,
             opacity: 0.12
@@ -471,7 +487,7 @@
         group.add(moebiusMesh);
         group.add(wireframeMesh);
 
-        // 7. LIGHTING
+        // 7. LIGHTING – attached to group so highlights don’t “swim”
         const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
         mainLight.position.set(5, 10, 7);
         group.add(mainLight);
@@ -487,32 +503,41 @@
 
         // 8. ORIENTATION & SCALE
         group.scale.set(0.8, 0.8, 0.8);
-        group.rotation.x = THREE.MathUtils.degToRad(18);
+        group.rotation.x = THREE.MathUtils.degToRad(12); // shallow tilt
 
-        // 9. ANIMATION
+        // 9. RESPONSIVE CAMERA / RESIZE
+        function adjustCameraAndRenderer() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const aspect = width / height;
+
+            camera.aspect = aspect;
+
+            // Keep object framed consistently across aspect ratios
+            camera.position.z = aspect >= 1
+                ? baseCameraZ
+                : baseCameraZ / aspect;
+
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        window.addEventListener("resize", adjustCameraAndRenderer);
+        adjustCameraAndRenderer(); // initial layout
+
+        // 10. ANIMATION
         let lastTime = 0;
         function animate(time) {
             const dt = (time - lastTime) / 1000;
             lastTime = time;
 
-            group.rotation.y += 0.25 * dt;
+            group.rotation.y += 0.25 * dt; // turntable
             group.rotation.z += 0.05 * dt;
 
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
         }
 
-        // 10. RESIZE
-        function onResize() {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-        }
-
-        window.addEventListener("resize", onResize);
-        onResize();
         requestAnimationFrame(animate);
     </script>
 </body>
