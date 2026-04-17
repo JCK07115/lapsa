@@ -44,65 +44,60 @@ canvas {
   transition: opacity 0.3s;
 }
 
-/* Left vertical alphabet rail */
+/* Full-screen letter layer */
 #alphabet-rail {
   position: fixed;
-  left: 24px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  opacity: 0;
+  inset: 0;
   pointer-events: none;
-  transition: opacity 0.25s linear;
   z-index: 5;
 }
 
+/* Each letter is absolutely placed by JS */
 .letter-link {
+  position: absolute;
+  left: 0;
+  top: 0;
   color: rgba(255,255,255,0.72);
   text-decoration: none;
   font-size: 16px;
   line-height: 1;
-  padding: 2px 0;
-  transform-origin: left center;
+  transform-origin: center center;
   transition:
-    transform 0.18s ease,
-    opacity 0.18s ease,
     color 0.18s ease,
     letter-spacing 0.18s ease;
   will-change: transform, opacity;
+  user-select: none;
 }
 
-/* Default dimming when rail active */
+.letter-link.left-side {
+  text-align: left;
+}
+
+.letter-link.right-side {
+  text-align: right;
+}
+
+/* When hover mode is active, dim others */
 #alphabet-rail.is-hovering .letter-link {
-  opacity: 0.28;
+  opacity: 0.28 !important;
 }
 
-/* Hovered / proximity states */
+/* Hovered / neighboring states */
 .letter-link.is-active {
   opacity: 1 !important;
   color: #ffffff;
-  transform: scale(1.45);
   letter-spacing: 0.04em;
 }
 
 .letter-link.is-near-1 {
   opacity: 0.82 !important;
-  transform: scale(1.22);
 }
 
 .letter-link.is-near-2 {
   opacity: 0.58 !important;
-  transform: scale(1.1);
 }
 
-.letter-link:hover {
-  color: #ffffff;
-}
-
-/* Click transition states */
+/* Click transition */
 body.transitioning #scroll-hint {
   opacity: 0 !important;
 }
@@ -113,19 +108,16 @@ body.transitioning #torus-glow {
 }
 
 body.transitioning #alphabet-rail {
-  opacity: 1 !important;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 
 body.transitioning #alphabet-rail .letter-link {
-  opacity: 0.12;
-  transform: scale(0.96);
+  opacity: 0.12 !important;
 }
 
 body.transitioning #alphabet-rail .letter-link.selected {
   opacity: 1 !important;
   color: #ffffff;
-  transform: scale(1.7);
   letter-spacing: 0.08em;
 }
 
@@ -149,26 +141,8 @@ body.transitioning #page-transition-veil {
   opacity: 1;
 }
 
-/* Mobile adjustments */
 @media (max-width: 700px) {
-  #alphabet-rail {
-    left: 14px;
-    gap: 3px;
-  }
-
   .letter-link {
     font-size: 14px;
-  }
-
-  .letter-link.is-active {
-    transform: scale(1.3);
-  }
-
-  .letter-link.is-near-1 {
-    transform: scale(1.14);
-  }
-
-  .letter-link.is-near-2 {
-    transform: scale(1.06);
   }
 }
