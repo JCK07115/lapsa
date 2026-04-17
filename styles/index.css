@@ -57,13 +57,24 @@ canvas {
   position: absolute;
   left: 0;
   top: 0;
-  color: rgba(255,255,255,0.72);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  color: #ffffff;
   text-decoration: none;
   font-size: 16px;
+  font-weight: 500;
   line-height: 1;
+  padding: 2px 2px 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   transform-origin: center center;
   transition:
     color 0.18s ease,
+    background-color 0.18s ease,
+    opacity 0.18s ease,
     letter-spacing 0.18s ease;
   will-change: transform, opacity;
   user-select: none;
@@ -77,15 +88,16 @@ canvas {
   text-align: right;
 }
 
-/* When hover mode is active, dim others */
 #alphabet-rail.is-hovering .letter-link {
-  opacity: 0.28 !important;
+  opacity: 1 !important;
+  color: rgba(255,255,255,0.28);
 }
 
-/* Hovered / neighboring states */
 .letter-link.is-active {
   opacity: 1 !important;
-  color: #ffffff;
+  color: #1a1a1a !important;
+  background: #ffffff !important;
+  /* box-shadow: 0 0 0 1px #ffffff inset; */
   letter-spacing: 0.04em;
 }
 

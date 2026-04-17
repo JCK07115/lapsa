@@ -54,78 +54,41 @@ export function setupAlphabet() {
     return clamp(raw, 0, 1);
   }
 
-  // function computeCurvedStartPosition(isLeft, sideIndex, vw, vh, isMobile) {
-  //   const centerX = vw * 0.5;
-  //   const centerY = vh * 0.5;
-
-  //   // normalized: -1 at top, 0 at middle, +1 at bottom
-  //   const n = (sideIndex / (LEFT_COUNT - 1)) * 2 - 1;
-
-  //   // vertical spread of the curved "C"
-  //   const curveHeight = isMobile ? vh * 0.22 : vh * 0.28;
-
-  //   // horizontal offset from center to place the lobe
-  //   const lobeOffsetX = isMobile ? vw * 0.12 : vw * 0.15;
-
-  //   // how pronounced the C curve is:
-  //   // strongest at center, weaker at top/bottom
-  //   const curveBulge = (1 - n * n); // parabola, max at middle
-
-  //   // inward/outward shape control
-  //   const bulgeAmount = isMobile ? 42 : 72;
-
-  //   const baseX = centerX + (isLeft ? -lobeOffsetX : lobeOffsetX);
-  //   const x = baseX + (isLeft ? -1 : 1) * curveBulge * bulgeAmount;
-  //   const y = centerY + n * curveHeight;
-
-  //   return { x, y };
-  // }
-
   function computeCurvedStartPosition(isLeft, sideIndex, vw, vh, isMobile) {
     const centerX = vw * 0.5;
     const centerY = vh * 0.5;
 
-    const profile = isMobile
-      ? [
-          { x: -4, y: -110 }, // A / N
-          { x:  4, y: -92  },
-          { x: 20, y: -72  },
-          { x: 38, y: -50  },
-          { x: 54, y: -28  },
-          { x: 64, y: -10  },
-          { x: 68, y:   0  },
-          { x: 64, y:  10  },
-          { x: 54, y:  28  },
-          { x: 38, y:  50  },
-          { x: 20, y:  72  },
-          { x:  4, y:  92  },
-          { x:  0, y: 110 }  // M / Z
-        ]
-      : [
-          { x: -6, y: -150 }, // A / N
-          { x:  6, y: -126 },
-          { x: 28, y: -98  },
-          { x: 54, y: -68  },
-          { x: 80, y: -38  },
-          { x: 98, y: -14  },
-          { x: 104, y:   0  },
-          { x: 98, y:  14  },
-          { x: 80, y:  38  },
-          { x: 54, y:  68  },
-          { x: 28, y:  98  },
-          { x:  8, y: 126  },
-          { x:  0, y: 150 }  // M / Z
-        ];
+    // normalized: -1 at top, 0 at middle, +1 at bottom
+    const n = (sideIndex / (LEFT_COUNT - 1)) * 2 - 1;
+    const absN = Math.abs(n);
 
-    const p = profile[sideIndex];
-    const seamX = centerX;
+    // vertical spread of the curved lobe
+    const curveHeight = isMobile ? vh * 0.22 : vh * 0.28;
 
-    const x = seamX + (isLeft ? -p.x : p.x);
-    const y = centerY + p.y;
+    // horizontal offset from center to place the lobe
+    const lobeOffsetX = isMobile ? vw * 0.12 : vw * 0.15;
+
+    // strongest at center, weaker at top/bottom
+    const curveBulge = 1 - n * n;
+
+    // outward push in the middle
+    const bulgeAmount = isMobile ? 42 : 72;
+
+    // NEW: inward pull at the tips
+    // strongest near top/bottom, fades toward middle
+    const tipPull = Math.pow(absN, 2.2);
+    const tipPullAmount = isMobile ? 20 : 36;
+
+    const baseX = centerX + (isLeft ? -lobeOffsetX : lobeOffsetX);
+
+    const outwardX = (isLeft ? -1 : 1) * curveBulge * bulgeAmount;
+    const inwardTipX = (isLeft ? 1 : -1) * tipPull * tipPullAmount;
+
+    const x = baseX + outwardX + inwardTipX;
+    const y = centerY + n * curveHeight;
 
     return { x, y };
   }
-
 
   function computeLayout() {
     const vw = window.innerWidth;
@@ -207,8 +170,8 @@ export function setupAlphabet() {
       clearHoverStates();
     }
 
-    // const visibleProgress = clamp((progress - 0.04) / 0.96, 0, 1);
-    const visibleProgress = clamp((progress - 0.0) / 1.0, 0, 1);
+    const visibleProgress = clamp((progress - 0.04) / 0.96, 0, 1);
+    // const visibleProgress = clamp((progress - 0.0) / 1.0, 0, 1);
     
     const baseT = easeInOutCubic(visibleProgress);
 
@@ -223,11 +186,11 @@ export function setupAlphabet() {
       const x = lerp(startX, endX, t);
       const y = lerp(startY, endY, t);
 
-      // let opacity = 0;
-      // if (progress > 0.03) {
-      //   opacity = lerp(0, 0.92, baseT);
-      // }
-      const opacity = lerp(0.18, 0.92, baseT);
+      let opacity = 0;
+      if (progress > 0.03) {
+        opacity = lerp(0, 0.92, baseT);
+      }
+      // const opacity = lerp(0.18, 0.92, baseT);
 
       let baseScale = lerp(0.88, 1.0, t);
 
@@ -250,7 +213,7 @@ export function setupAlphabet() {
       }
 
       link.style.opacity = String(opacity);
-      link.style.transform = `translate(${x}px, ${y}px) scale(${baseScale * hoverScale})`;
+      link.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${baseScale * hoverScale})`;
     });
 
     if (hoverReady && hoveredIndex !== null) {
@@ -281,7 +244,7 @@ export function setupAlphabet() {
     renderLetters();
   }
 
-  letterLinks.forEach((link, index) => {
+    letterLinks.forEach((link, index) => {
     link.addEventListener("mouseenter", () => {
       if (assemblyProgress < 0.94) return;
       if (document.body.classList.contains("transitioning")) return;
@@ -291,6 +254,19 @@ export function setupAlphabet() {
 
       if (torusGlow) {
         torusGlow.style.opacity = "1";
+      }
+
+      renderLetters();
+    });
+
+    link.addEventListener("mouseleave", () => {
+      if (document.body.classList.contains("transitioning")) return;
+
+      hoveredIndex = null;
+      clearHoverStates();
+
+      if (torusGlow) {
+        torusGlow.style.opacity = "0";
       }
 
       renderLetters();
