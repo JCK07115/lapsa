@@ -29,47 +29,8 @@ canvas {
   opacity: 0;
   pointer-events: none;
   mix-blend-mode: screen;
-  transition: opacity 0.35s ease-out;
+  transition: opacity 0.35s ease-out, transform 0.6s ease;
   z-index: -1;
-}
-
-#alphabet-container {
-  position: fixed;
-  left: 50%;
-  top: 68%;
-  transform: translateX(-50%);
-  width: 90%;
-  max-width: 700px;
-  text-align: center;
-  color: #ffffff;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s linear;
-}
-
-.letter-row {
-  display: flex;
-  justify-content: center;
-  gap: 18px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-
-.letter-link {
-  color: #ffffff;
-  text-decoration: none;
-  font-size: 18px;
-  font-weight: 500;
-  padding: 2px 2px 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.4);
-  transition: all 0.25s ease;
-}
-
-.letter-link:hover {
-  color: #1a1a1a;
-  background: #ffffff;
-  border-bottom-color: #ffffff;
-  transform: translateY(-2px);
 }
 
 #scroll-hint {
@@ -81,4 +42,133 @@ canvas {
   font-size: 12px;
   pointer-events: none;
   transition: opacity 0.3s;
+}
+
+/* Left vertical alphabet rail */
+#alphabet-rail {
+  position: fixed;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s linear;
+  z-index: 5;
+}
+
+.letter-link {
+  color: rgba(255,255,255,0.72);
+  text-decoration: none;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 0;
+  transform-origin: left center;
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease,
+    color 0.18s ease,
+    letter-spacing 0.18s ease;
+  will-change: transform, opacity;
+}
+
+/* Default dimming when rail active */
+#alphabet-rail.is-hovering .letter-link {
+  opacity: 0.28;
+}
+
+/* Hovered / proximity states */
+.letter-link.is-active {
+  opacity: 1 !important;
+  color: #ffffff;
+  transform: scale(1.45);
+  letter-spacing: 0.04em;
+}
+
+.letter-link.is-near-1 {
+  opacity: 0.82 !important;
+  transform: scale(1.22);
+}
+
+.letter-link.is-near-2 {
+  opacity: 0.58 !important;
+  transform: scale(1.1);
+}
+
+.letter-link:hover {
+  color: #ffffff;
+}
+
+/* Click transition states */
+body.transitioning #scroll-hint {
+  opacity: 0 !important;
+}
+
+body.transitioning #torus-glow {
+  opacity: 1 !important;
+  transform: translate(-50%, -50%) scale(1.25);
+}
+
+body.transitioning #alphabet-rail {
+  opacity: 1 !important;
+  pointer-events: none;
+}
+
+body.transitioning #alphabet-rail .letter-link {
+  opacity: 0.12;
+  transform: scale(0.96);
+}
+
+body.transitioning #alphabet-rail .letter-link.selected {
+  opacity: 1 !important;
+  color: #ffffff;
+  transform: scale(1.7);
+  letter-spacing: 0.08em;
+}
+
+#page-transition-veil {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    circle at center,
+    rgba(255,255,255,0.08) 0%,
+    rgba(255,255,255,0.03) 20%,
+    rgba(26,26,26,0.0) 40%,
+    rgba(26,26,26,0.92) 100%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+  z-index: 10;
+}
+
+body.transitioning #page-transition-veil {
+  opacity: 1;
+}
+
+/* Mobile adjustments */
+@media (max-width: 700px) {
+  #alphabet-rail {
+    left: 14px;
+    gap: 3px;
+  }
+
+  .letter-link {
+    font-size: 14px;
+  }
+
+  .letter-link.is-active {
+    transform: scale(1.3);
+  }
+
+  .letter-link.is-near-1 {
+    transform: scale(1.14);
+  }
+
+  .letter-link.is-near-2 {
+    transform: scale(1.06);
+  }
 }
