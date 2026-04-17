@@ -1,320 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Möbius Alphabet – Flowing Indented Torus</title>
-    <style>
-        body { 
-            margin: 0; 
-            background-color: #1a1a1a; 
-            height: 260vh;  /* scroll ends around when letters are fully visible */
-            font-family: 'Courier New', Courier, monospace;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Möbius Alphabet – Flowing Indented Torus</title>
 
-        canvas { 
-            display: block; 
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: -2;   /* furthest back: 3D scene */
-        }
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/index.css" />
 
-        /* Soft halo behind the torus, above canvas but below UI */
-        #torus-glow {
-            position: fixed;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: 42vw;
-            height: 42vw;
-            max-width: 620px;
-            max-height: 620px;
-            background: radial-gradient(
-                circle,
-                rgba(255,255,255,0.28) 0%,
-                rgba(255,255,255,0.12) 28%,
-                rgba(255,255,255,0.03) 55%,
-                transparent 75%
-            );
-            opacity: 0;
-            pointer-events: none;
-            mix-blend-mode: screen;
-            transition: opacity 0.35s ease-out;
-            z-index: -1;   /* between canvas and text */
-        }
-
-        /* Letters fixed below ∞, faded in by JS */
-        #alphabet-container {
-            position: fixed;
-            left: 50%;
-            top: 68%;                 /* below center / ∞ */
-            transform: translateX(-50%);
-            width: 90%;
-            max-width: 700px;
-            text-align: center;
-            color: #ffffff;
-            opacity: 0;               /* controlled by JS */
-            pointer-events: none;     /* enabled when visible */
-            transition: opacity 0.25s linear;
-        }
-
-        .letter-row {
-            display: flex;
-            justify-content: center;
-            gap: 18px;
-            margin-bottom: 10px;
-        }
-
-        .letter-link {
-            color: #ffffff;
-            text-decoration: none;
-            font-size: 18px;
-            font-weight: 500;
-            padding: 2px 2px 4px;
-            border-bottom: 1px solid rgba(255,255,255,0.4);
-            transition: all 0.25s ease;
-        }
-
-        .letter-link:hover {
-            color: #1a1a1a;
-            background: #ffffff;
-            border-bottom-color: #ffffff;
-            transform: translateY(-2px);
-        }
-
-        #scroll-hint {
-            position: fixed;
-            bottom: 30px;
-            width: 100%;
-            text-align: center;
-            color: rgba(255,255,255,0.3);
-            font-size: 12px;
-            pointer-events: none;
-            transition: opacity 0.3s;
-        }
-    </style>
-    
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
 </head>
 <body>
+  <div id="scroll-hint">
+    WELCOME TO LAPSA
+    <br />
+    SCROLL DOWN TO EXPLORE
+  </div>
 
-    <div id="scroll-hint">
-        WELCOME TO LAPSA
-        <br>
-        SCROLL DOWN TO EXPLORE
-    </div>
+  <div id="torus-glow"></div>
 
-    <!-- Screen-space halo behind the torus -->
-    <div id="torus-glow"></div>
+  <div id="alphabet-container">
+    <div class="letter-row" id="row-1"></div>
+    <div class="letter-row" id="row-2"></div>
+    <div class="letter-row" id="row-3"></div>
+  </div>
 
-    <!-- Fixed letters, will fade in after enough scrolling -->
-    <div id="alphabet-container">
-        <div class="letter-row" id="row-1"></div> <!-- A–J -->
-        <div class="letter-row" id="row-2"></div> <!-- K–T -->
-        <div class="letter-row" id="row-3"></div> <!-- U–Z -->
-    </div>
-
-    <script type="module">
-        import * as THREE from 'three';
-        import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
-
-        // --- 1. SETUP ---
-        const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x1a1a1a, 0.04);
-
-        const camera = new THREE.PerspectiveCamera(
-            45,
-            window.innerWidth / window.innerHeight,
-            0.1,
-            100
-        );
-        
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        document.body.appendChild(renderer.domElement);
-
-        // --- 2. ALPHABET LINKS (3 rows: A–J, K–T, U–Z) ---
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-        const row1 = document.getElementById("row-1");
-        const row2 = document.getElementById("row-2");
-        const row3 = document.getElementById("row-3");
-
-        const groups = [
-            letters.slice(0, 10),   // A–J
-            letters.slice(10, 20),  // K–T
-            letters.slice(20)       // U–Z
-        ];
-        const rows = [row1, row2, row3];
-
-        groups.forEach((group, i) => {
-            group.forEach(char => {
-                const a = document.createElement('a');
-                a.href = "#";
-                a.className = "letter-link";
-                a.innerText = char;
-                rows[i].appendChild(a);
-            });
-        });
-
-        // --- 2b. HOVER: toggle CSS halo instead of 3D duplicate mesh ---
-        const torusGlow = document.getElementById('torus-glow');
-        const letterLinks = document.querySelectorAll('.letter-link');
-        letterLinks.forEach(link => {
-            link.addEventListener('mouseenter', () => {
-                torusGlow.style.opacity = '1';
-            });
-            link.addEventListener('mouseleave', () => {
-                torusGlow.style.opacity = '0';
-            });
-        });
-
-        // --- 3. GEOMETRY – indented torus with flowing cross-section ---
-        const SEG_U = 40;
-        const SEG_V = 11;
-
-        const R = 3.8;        // main radius
-        const r = 0.55;       // tube radius
-        const INDENT = 1.8;   // depth of the two dips
-
-        function indentedTorusPoint(u, v, phase, target) {
-            const TWO_PI = Math.PI * 2;
-            const up = u * TWO_PI;
-            const vp = (v + phase) * TWO_PI;
-
-            const cosu = Math.cos(up),  sinu = Math.sin(up);
-            const cosv = Math.cos(vp),  sinv = Math.sin(vp);
-
-            let x = (R + r * cosv) * cosu;
-            let z = (R + r * cosv) * sinu;
-            let y = r * sinv;
-
-            const dip = (1 - Math.cos(2 * up)) * 0.5;
-            y -= INDENT * dip;
-
-            target.set(x, y, z);
-        }
-
-        const geometry = new ParametricGeometry(
-            (u, v, target) => indentedTorusPoint(u, v, 0.0, target),
-            SEG_U,
-            SEG_V
-        );
-
-        // --- 4. MATERIAL – white wireframe only ---
-        const wireframeMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.9
-        });
-
-        const torusMesh = new THREE.Mesh(geometry, wireframeMaterial);
-        
-        const group = new THREE.Group();
-        group.add(torusMesh);
-        
-        // Lights kept but have no effect on MeshBasic (harmless)
-        const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
-        mainLight.position.set(5, 10, 7); 
-        group.add(mainLight);
-
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        fillLight.position.set(-5, -5, -5); 
-        group.add(fillLight);
-
-        scene.add(group);
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-
-        // --- 5. ORIENTATION – your tuned ∞ silhouette ---
-        group.scale.set(0.7, 0.7, 0.7);
-        group.rotation.x = THREE.MathUtils.degToRad(-8);
-        group.rotation.y = THREE.MathUtils.degToRad(40);
-        group.rotation.z = THREE.MathUtils.degToRad(6);
-
-        // --- 6. SCROLL: fade out hint; fade letters in/out based on depth ---
-        const scrollHint = document.getElementById('scroll-hint');
-        const alphabetContainer = document.getElementById('alphabet-container');
-
-        function handleScroll() {
-            const scrollY = window.scrollY;
-            const vh = window.innerHeight;
-
-            // Hint fades out in first half-screen
-            const hintProgress = Math.min(scrollY / (0.5 * vh), 1);
-            scrollHint.style.opacity = String(1 - hintProgress);
-
-            // Letters fade in after ~1 screen, fade out when scrolling back up
-            const showStart = 1 * vh;
-            const fadeSpan  = 0.6 * vh;
-
-            let alpha = (scrollY - showStart) / fadeSpan;
-            if (alpha < 0) alpha = 0;
-            if (alpha > 1) alpha = 1;
-
-            alphabetContainer.style.opacity = String(alpha);
-            alphabetContainer.style.pointerEvents = alpha > 0.05 ? 'auto' : 'none';
-        }
-
-        window.addEventListener('scroll', handleScroll);
-        handleScroll(); // initial state
-
-        // --- 7. RESPONSIVENESS ---
-        function adjustCameraDistance() {
-            const aspect = window.innerWidth / window.innerHeight;
-            const baseDistance = 12; 
-            if (aspect < 1) {
-                camera.position.set(0, 0, baseDistance / aspect);
-            } else {
-                camera.position.set(0, 0, baseDistance);
-            }
-        }
-        adjustCameraDistance();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            adjustCameraDistance();
-        });
-
-        // --- 8. FLOW ANIMATION ALONG THE TORUS (no global rotation) ---
-        const positionAttr = geometry.attributes.position;
-        const tmp = new THREE.Vector3();
-        let phase = 0;
-
-        function updateFlow(phase) {
-            let index = 0;
-            for (let i = 0; i <= SEG_U; i++) {
-                const u = i / SEG_U;
-                for (let j = 0; j <= SEG_V; j++) {
-                    const v = j / SEG_V;
-                    indentedTorusPoint(u, v, phase, tmp);
-                    positionAttr.array[index * 3 + 0] = tmp.x;
-                    positionAttr.array[index * 3 + 1] = tmp.y;
-                    positionAttr.array[index * 3 + 2] = tmp.z;
-                    index++;
-                }
-            }
-            positionAttr.needsUpdate = true;
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            phase = (phase + 0.0015) % 1.0;   // contemplative flow
-            updateFlow(phase);
-            renderer.render(scene, camera);
-        }
-
-        animate();
-    </script>
+  <script type="module" src="scripts/main.js"></script>
 </body>
 </html>
