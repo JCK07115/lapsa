@@ -29,47 +29,8 @@ canvas {
   opacity: 0;
   pointer-events: none;
   mix-blend-mode: screen;
-  transition: opacity 0.35s ease-out;
+  transition: opacity 0.35s ease-out, transform 0.6s ease;
   z-index: -1;
-}
-
-#alphabet-container {
-  position: fixed;
-  left: 50%;
-  top: 68%;
-  transform: translateX(-50%);
-  width: 90%;
-  max-width: 700px;
-  text-align: center;
-  color: #ffffff;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s linear;
-}
-
-.letter-row {
-  display: flex;
-  justify-content: center;
-  gap: 18px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-
-.letter-link {
-  color: #ffffff;
-  text-decoration: none;
-  font-size: 18px;
-  font-weight: 500;
-  padding: 2px 2px 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.4);
-  transition: all 0.25s ease;
-}
-
-.letter-link:hover {
-  color: #1a1a1a;
-  background: #ffffff;
-  border-bottom-color: #ffffff;
-  transform: translateY(-2px);
 }
 
 #scroll-hint {
@@ -81,4 +42,119 @@ canvas {
   font-size: 12px;
   pointer-events: none;
   transition: opacity 0.3s;
+}
+
+/* Full-screen letter layer */
+#alphabet-rail {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Each letter is absolutely placed by JS */
+.letter-link {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 2px 2px 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  transform-origin: center center;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    opacity 0.18s ease,
+    letter-spacing 0.18s ease;
+  will-change: transform, opacity;
+  user-select: none;
+}
+
+.letter-link.left-side {
+  text-align: left;
+}
+
+.letter-link.right-side {
+  text-align: right;
+}
+
+#alphabet-rail.is-hovering .letter-link {
+  opacity: 1 !important;
+  color: rgba(255,255,255,0.28);
+}
+
+.letter-link.is-active {
+  opacity: 1 !important;
+  color: #1a1a1a !important;
+  background: #ffffff !important;
+  /* box-shadow: 0 0 0 1px #ffffff inset; */
+  letter-spacing: 0.04em;
+}
+
+.letter-link.is-near-1 {
+  opacity: 0.82 !important;
+}
+
+.letter-link.is-near-2 {
+  opacity: 0.58 !important;
+}
+
+/* Click transition */
+body.transitioning #scroll-hint {
+  opacity: 0 !important;
+}
+
+body.transitioning #torus-glow {
+  opacity: 1 !important;
+  transform: translate(-50%, -50%) scale(1.25);
+}
+
+body.transitioning #alphabet-rail {
+  pointer-events: none !important;
+}
+
+body.transitioning #alphabet-rail .letter-link {
+  opacity: 0.12 !important;
+}
+
+body.transitioning #alphabet-rail .letter-link.selected {
+  opacity: 1 !important;
+  color: #ffffff;
+  letter-spacing: 0.08em;
+}
+
+#page-transition-veil {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    circle at center,
+    rgba(255,255,255,0.08) 0%,
+    rgba(255,255,255,0.03) 20%,
+    rgba(26,26,26,0.0) 40%,
+    rgba(26,26,26,0.92) 100%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+  z-index: 10;
+}
+
+body.transitioning #page-transition-veil {
+  opacity: 1;
+}
+
+@media (max-width: 700px) {
+  .letter-link {
+    font-size: 14px;
+  }
 }
