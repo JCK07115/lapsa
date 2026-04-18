@@ -278,7 +278,6 @@ export function setupAlphabet() {
       if (document.body.classList.contains("transitioning")) return;
 
       const href = link.href;
-
       const selectedChar = link.textContent;
 
       window.dispatchEvent(
@@ -297,9 +296,10 @@ export function setupAlphabet() {
 
       renderLetters();
 
+      // redirect to letter page
       setTimeout(() => {
         window.location.href = href;
-      }, 700);
+      }, 2100);
     });
   });
 
