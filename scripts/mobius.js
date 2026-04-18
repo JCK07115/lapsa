@@ -32,9 +32,9 @@ export function setupMobiusScene() {
 
   const letterRotationPresets = {
     default: {
-      x: THREE.MathUtils.degToRad(74),
-      y: THREE.MathUtils.degToRad(18),
-      z: THREE.MathUtils.degToRad(10)
+      x: THREE.MathUtils.degToRad(84),
+      y: THREE.MathUtils.degToRad(0),
+      z: THREE.MathUtils.degToRad(2)
     }
   };
 

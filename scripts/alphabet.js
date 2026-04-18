@@ -298,7 +298,7 @@ export function setupAlphabet() {
 
       // redirect to letter page
       setTimeout(() => {
-        window.location.href = href;
+        // window.location.href = href;
       }, 2100);
     });
   });
