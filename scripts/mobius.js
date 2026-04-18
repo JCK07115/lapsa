@@ -24,35 +24,18 @@ export function setupMobiusScene() {
   const r = 0.55;
   const INDENT = 1.8;
 
-  const neutralMorph = {
-    pinch: 0,
-    peak: 0,
-    angularity: 0,
-    sideTaper: 0,
-    triangleBias: 0
-  };
-
-  const letterMorphPresets = {
-    A: {
-      pinch: 1.0,
-      peak: 1.6,
-      angularity: 1.0,
-      sideTaper: 1.2,
-      triangleBias: 1.0,
-      rotationX: THREE.MathUtils.degToRad(74),
-      rotationY: THREE.MathUtils.degToRad(18),
-      rotationZ: THREE.MathUtils.degToRad(10)
-    }
-  };
-
-  const currentMorph = { ...neutralMorph };
-  const startMorph = { ...neutralMorph };
-  const targetMorph = { ...neutralMorph };
-
   const neutralRotation = {
     x: THREE.MathUtils.degToRad(-8),
     y: THREE.MathUtils.degToRad(40),
     z: THREE.MathUtils.degToRad(6)
+  };
+
+  const letterRotationPresets = {
+    default: {
+      x: THREE.MathUtils.degToRad(74),
+      y: THREE.MathUtils.degToRad(18),
+      z: THREE.MathUtils.degToRad(10)
+    }
   };
 
   const currentRotation = { ...neutralRotation };
@@ -77,46 +60,26 @@ export function setupMobiusScene() {
       : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
-  function remap(value, inMin, inMax) {
-    return clamp((value - inMin) / (inMax - inMin), 0, 1);
-  }
-
-  function beginMorphToLetter(char) {
-    const preset = letterMorphPresets[char] || {};
-
-    Object.assign(startMorph, currentMorph);
-    Object.assign(targetMorph, neutralMorph, preset);
+  function beginRotationToLetter(char) {
+    const preset = letterRotationPresets[char] || letterRotationPresets.default || neutralRotation;
 
     Object.assign(startRotation, currentRotation);
-    Object.assign(targetRotation, {
-      x: preset.rotationX ?? neutralRotation.x,
-      y: preset.rotationY ?? neutralRotation.y,
-      z: preset.rotationZ ?? neutralRotation.z
-    });
+    Object.assign(targetRotation, preset);
 
     morphStartTime = performance.now();
     isMorphing = true;
   }
 
-  function updateMorphState() {
+  function updateRotationState() {
     if (!isMorphing) return;
 
     const elapsed = performance.now() - morphStartTime;
     const rawT = clamp(elapsed / morphDuration, 0, 1);
+    const t = easeInOutCubic(rawT);
 
-    // Phase 1: rotation happens first
-    const rotationT = easeInOutCubic(remap(rawT, 0.0, 0.42));
-
-    // Phase 2: geometry deformation begins after rotation is underway
-    const shapeT = easeInOutCubic(remap(rawT, 0.28, 1.0));
-
-    for (const key of Object.keys(currentMorph)) {
-      currentMorph[key] = lerp(startMorph[key], targetMorph[key], shapeT);
-    }
-
-    currentRotation.x = lerp(startRotation.x, targetRotation.x, rotationT);
-    currentRotation.y = lerp(startRotation.y, targetRotation.y, rotationT);
-    currentRotation.z = lerp(startRotation.z, targetRotation.z, rotationT);
+    currentRotation.x = lerp(startRotation.x, targetRotation.x, t);
+    currentRotation.y = lerp(startRotation.y, targetRotation.y, t);
+    currentRotation.z = lerp(startRotation.z, targetRotation.z, t);
 
     if (rawT >= 1) {
       isMorphing = false;
@@ -128,77 +91,15 @@ export function setupMobiusScene() {
     const up = u * TWO_PI;
     const vp = (v + phase) * TWO_PI;
 
-    const cosu = Math.cos(up);
-    const sinu = Math.sin(up);
-    const cosv = Math.cos(vp);
-    const sinv = Math.sin(vp);
+    const cosu = Math.cos(up), sinu = Math.sin(up);
+    const cosv = Math.cos(vp), sinv = Math.sin(vp);
 
-    const shapedCosV = lerp(
-      cosv,
-      Math.sign(cosv) * Math.pow(Math.abs(cosv), 0.28),
-      currentMorph.angularity
-    );
-
-    const shapedSinV = lerp(
-      sinv,
-      Math.sign(sinv) * Math.pow(Math.abs(sinv), 0.28),
-      currentMorph.angularity
-    );
-
-    const upperWeight = Math.max(0, sinv);
-    const lowerWeight = Math.max(0, -sinv);
-    const lateralWeight = Math.pow(Math.abs(cosu), 0.78);
-
-    let localRadius = r;
-
-    // Keep some center tightening, but less aggressive than before
-    const centerPinchProfile = Math.pow(Math.sin(up), 2);
-    localRadius *= 1 - currentMorph.pinch * 0.42 * centerPinchProfile;
-
-    let x = (R + localRadius * shapedCosV) * cosu;
-    let z = (R + localRadius * shapedCosV) * sinu;
-    let y = localRadius * shapedSinV;
+    const x = (R + r * cosv) * cosu;
+    const z = (R + r * cosv) * sinu;
+    let y = r * sinv;
 
     const dip = (1 - Math.cos(2 * up)) * 0.5;
     y -= INDENT * dip;
-
-    // Mild apex lift only — no more giant spike behavior
-    y += currentMorph.peak * upperWeight * 0.9;
-
-    // Slight lower compression to help structure read cleaner
-    y -= currentMorph.peak * lowerWeight * 0.16;
-
-    // Mild side taper
-    x *= 1 - currentMorph.sideTaper * 0.16 * upperWeight;
-    z *= 1 - currentMorph.sideTaper * 0.08 * upperWeight;
-
-    // Triangle-biased remapping:
-    // top area moves toward an apex,
-    // lower-left and lower-right areas move toward triangle base corners.
-    if (currentMorph.triangleBias > 0) {
-      const topZone = Math.pow(Math.max(0, sinu), 2.2) * Math.max(0, sinv);
-      const lowerZone = Math.pow(Math.max(0, -sinu), 1.6) * Math.max(0, -sinv);
-      const sideSign = Math.sign(cosu) || 1;
-
-      const apexTargetX = 0;
-      const apexTargetY = 2.8;
-      const apexTargetZ = 1.35;
-
-      const baseTargetX = sideSign * 2.55;
-      const baseTargetY = -2.05;
-      const baseTargetZ = -1.25;
-
-      const topPull = currentMorph.triangleBias * topZone * 0.42;
-      const basePull = currentMorph.triangleBias * lowerZone * 0.32;
-
-      x = lerp(x, apexTargetX, topPull);
-      y = lerp(y, apexTargetY, topPull);
-      z = lerp(z, apexTargetZ, topPull);
-
-      x = lerp(x, baseTargetX, basePull);
-      y = lerp(y, baseTargetY, basePull);
-      z = lerp(z, baseTargetZ, basePull);
-    }
 
     target.set(x, y, z);
   }
@@ -269,7 +170,7 @@ export function setupMobiusScene() {
     console.log("[mobius] letter selected:", char, index, href);
 
     clickPulse = 1;
-    beginMorphToLetter(char);
+    beginRotationToLetter(char);
   });
 
   function updateFlow(currentPhase) {
@@ -294,8 +195,7 @@ export function setupMobiusScene() {
     requestAnimationFrame(animate);
 
     phase = (phase + 0.0015) % 1.0;
-
-    updateMorphState();
+    updateRotationState();
     updateFlow(phase);
 
     if (clickPulse > 0.001) {
@@ -310,7 +210,6 @@ export function setupMobiusScene() {
     group.rotation.y = currentRotation.y;
     group.rotation.z = currentRotation.z;
     group.scale.setScalar(0.7 + pulseT * 0.05);
-
     wireframeMaterial.opacity = 0.9 + pulseT * 0.1;
 
     renderer.render(scene, camera);
