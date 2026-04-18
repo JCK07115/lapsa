@@ -2,6 +2,7 @@ export function setupAlphabet() {
   const rail = document.getElementById("alphabet-rail");
   const torusGlow = document.getElementById("torus-glow");
   const scrollHint = document.getElementById("scroll-hint");
+  const selectedLetterOverlay = document.getElementById("selected-letter-overlay");
 
   if (!rail) return;
 
@@ -280,6 +281,11 @@ export function setupAlphabet() {
       const href = link.href;
       const selectedChar = link.textContent;
 
+      if (selectedLetterOverlay) {
+        selectedLetterOverlay.textContent = selectedChar;
+        selectedLetterOverlay.classList.remove("is-visible");
+      }
+
       window.dispatchEvent(
         new CustomEvent("lapsa:letter-select", {
           detail: { char: selectedChar, index, href }
@@ -296,10 +302,15 @@ export function setupAlphabet() {
 
       renderLetters();
 
-      // redirect to letter page
+      if (selectedLetterOverlay) {
+        setTimeout(() => {
+          selectedLetterOverlay.classList.add("is-visible");
+        }, 950);
+      }
+
       setTimeout(() => {
         // window.location.href = href;
-      }, 2100);
+      }, 2600);
     });
   });
 
