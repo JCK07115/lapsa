@@ -28,18 +28,20 @@ export function setupMobiusScene() {
     pinch: 0,
     peak: 0,
     angularity: 0,
-    sideTaper: 0
+    sideTaper: 0,
+    triangleBias: 0
   };
 
   const letterMorphPresets = {
     A: {
-      pinch: 1.25,
-      peak: 3.8,
+      pinch: 1.0,
+      peak: 1.6,
       angularity: 1.0,
-      sideTaper: 2.0,
+      sideTaper: 1.2,
+      triangleBias: 1.0,
       rotationX: THREE.MathUtils.degToRad(74),
       rotationY: THREE.MathUtils.degToRad(18),
-      rotationZ: THREE.MathUtils.degToRad(0)
+      rotationZ: THREE.MathUtils.degToRad(10)
     }
   };
 
@@ -144,15 +146,14 @@ export function setupMobiusScene() {
     );
 
     const upperWeight = Math.max(0, sinv);
-    const lateralWeight = Math.pow(Math.abs(cosu), 0.72);
-    const centerWeight = Math.pow(Math.max(0, sinu), 1.0);
     const lowerWeight = Math.max(0, -sinv);
+    const lateralWeight = Math.pow(Math.abs(cosu), 0.78);
 
     let localRadius = r;
 
-    // Strong center tightening
+    // Keep some center tightening, but less aggressive than before
     const centerPinchProfile = Math.pow(Math.sin(up), 2);
-    localRadius *= 1 - currentMorph.pinch * 0.62 * centerPinchProfile;
+    localRadius *= 1 - currentMorph.pinch * 0.42 * centerPinchProfile;
 
     let x = (R + localRadius * shapedCosV) * cosu;
     let z = (R + localRadius * shapedCosV) * sinu;
@@ -161,23 +162,43 @@ export function setupMobiusScene() {
     const dip = (1 - Math.cos(2 * up)) * 0.5;
     y -= INDENT * dip;
 
-    // Strong apex lift at the top center
-    y += currentMorph.peak * upperWeight * (1.0 + 1.55 * centerWeight);
+    // Mild apex lift only — no more giant spike behavior
+    y += currentMorph.peak * upperWeight * 0.9;
 
-    // Push the lower region down a bit more so the triangular top dominates
-    y -= currentMorph.peak * lowerWeight * 0.38;
+    // Slight lower compression to help structure read cleaner
+    y -= currentMorph.peak * lowerWeight * 0.16;
 
-    // Pull upper side regions inward more strongly to form clearer slanted sides
-    x *= 1 - currentMorph.sideTaper * 0.34 * upperWeight;
-    z *= 1 - currentMorph.sideTaper * 0.2 * upperWeight;
+    // Mild side taper
+    x *= 1 - currentMorph.sideTaper * 0.16 * upperWeight;
+    z *= 1 - currentMorph.sideTaper * 0.08 * upperWeight;
 
-    // Lift left/right upper regions more uniformly to create triangle shoulders
-    y += currentMorph.sideTaper * 1.15 * upperWeight * lateralWeight;
+    // Triangle-biased remapping:
+    // top area moves toward an apex,
+    // lower-left and lower-right areas move toward triangle base corners.
+    if (currentMorph.triangleBias > 0) {
+      const topZone = Math.pow(Math.max(0, sinu), 2.2) * Math.max(0, sinv);
+      const lowerZone = Math.pow(Math.max(0, -sinu), 1.6) * Math.max(0, -sinv);
+      const sideSign = Math.sign(cosu) || 1;
 
-    // Tighten the very top center into a more decisive apex
-    const apexTighten = upperWeight * (1 - lateralWeight);
-    x *= 1 - currentMorph.sideTaper * 0.14 * apexTighten;
-    z *= 1 - currentMorph.sideTaper * 0.08 * apexTighten;
+      const apexTargetX = 0;
+      const apexTargetY = 2.8;
+      const apexTargetZ = 1.35;
+
+      const baseTargetX = sideSign * 2.55;
+      const baseTargetY = -2.05;
+      const baseTargetZ = -1.25;
+
+      const topPull = currentMorph.triangleBias * topZone * 0.42;
+      const basePull = currentMorph.triangleBias * lowerZone * 0.32;
+
+      x = lerp(x, apexTargetX, topPull);
+      y = lerp(y, apexTargetY, topPull);
+      z = lerp(z, apexTargetZ, topPull);
+
+      x = lerp(x, baseTargetX, basePull);
+      y = lerp(y, baseTargetY, basePull);
+      z = lerp(z, baseTargetZ, basePull);
+    }
 
     target.set(x, y, z);
   }
