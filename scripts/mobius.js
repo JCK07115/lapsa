@@ -14,7 +14,7 @@ export function setupMobiusScene() {
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   document.body.appendChild(renderer.domElement);
 
   const SEG_U = 40;
@@ -92,14 +92,26 @@ export function setupMobiusScene() {
   window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    // renderer.setSize(window.innerWidth, window.innerHeight);
     adjustCameraDistance();
   });
 
   const positionAttr = geometry.attributes.position;
   const tmp = new THREE.Vector3();
   let phase = 0;
+
+  // Temporary transition reaction state for click confirmation
+  let clickPulse = 0;
+
+  window.addEventListener("lapsa:letter-select", (event) => {
+    const { char, index, href } = event.detail || {};
+
+    console.log("[mobius] letter selected:", char, index, href);
+
+    // small visible confirmation that mobius.js received the event
+    clickPulse = 1;
+  });
 
   function updateFlow(currentPhase) {
     let index = 0;
@@ -121,8 +133,20 @@ export function setupMobiusScene() {
 
   function animate() {
     requestAnimationFrame(animate);
+
     phase = (phase + 0.0015) % 1.0;
     updateFlow(phase);
+
+    if (clickPulse > 0.001) {
+      clickPulse *= 0.9;
+    } else {
+      clickPulse = 0;
+    }
+
+    const pulseT = clickPulse;
+    group.scale.setScalar(0.7 + pulseT * 0.06);
+    wireframeMaterial.opacity = 0.9 + pulseT * 0.1;
+
     renderer.render(scene, camera);
   }
 

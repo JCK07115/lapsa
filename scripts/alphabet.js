@@ -279,6 +279,14 @@ export function setupAlphabet() {
 
       const href = link.href;
 
+      const selectedChar = link.textContent;
+
+      window.dispatchEvent(
+        new CustomEvent("lapsa:letter-select", {
+          detail: { char: selectedChar, index, href }
+        })
+      );
+
       document.body.classList.add("transitioning");
       link.classList.add("selected");
       hoveredIndex = index;
