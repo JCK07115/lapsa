@@ -29,7 +29,8 @@ export function setupTorusScene() {
   // let mouseTiltZ = 0;
   let currentMouseLeanX = 0;
   let currentMouseLeanY = 0;
-  // let currentMouseLeanZ = 0;
+  let currentMouseLeanZ = 0;          // driven by mouseTiltX for a more dynamic effect
+  let pointerTiltEnabled = false;
 
   const neutralRotation = {
     x: THREE.MathUtils.degToRad(-8),
@@ -194,18 +195,17 @@ export function setupTorusScene() {
 
     const pulseT = clickPulse;
 
-    const inLetterMode = document.body.classList.contains("in-letter-mode");
-    const targetLeanX = inLetterMode ? mouseTiltY * 0.04 : 0;
-    const targetLeanY = inLetterMode ? mouseTiltX * 0.04 : 0;
-    // const targetLeanZ = inLetterMode ? mouseTiltZ * 0.6 : 0;
+    const targetLeanX = pointerTiltEnabled ? mouseTiltY * 0.04 : 0;
+    const targetLeanY = pointerTiltEnabled ? mouseTiltX * 0.04 : 0;
+    const targetLeanZ = pointerTiltEnabled ? mouseTiltX * 0.25 : 0;
     
     currentMouseLeanX += (targetLeanX - currentMouseLeanX) * 0.08;
     currentMouseLeanY += (targetLeanY - currentMouseLeanY) * 0.08;
-    // currentMouseLeanZ += (targetLeanZ - currentMouseLeanZ) * 0.08;
+    currentMouseLeanZ += (targetLeanZ - currentMouseLeanZ) * 0.06;
 
     group.rotation.x = currentRotation.x + currentMouseLeanX;
     group.rotation.y = currentRotation.y + currentMouseLeanY;
-    group.rotation.z = currentRotation.z;
+    group.rotation.z = currentRotation.z + currentMouseLeanZ;
 
     group.scale.setScalar(0.7 + pulseT * 0.05);
     wireframeMaterial.opacity = 0.9 + pulseT * 0.1;
@@ -231,6 +231,9 @@ export function setupTorusScene() {
     const { char, index, href } = event.detail || {};
     
     console.log("[torus] letter selected:", char, index, href);
+
+    // enable pointer (carousel and torus) tilt on select to allow tilting in letter view
+    pointerTiltEnabled = true;
     
     clickPulse = 1;
     beginRotationToLetter(char);
@@ -240,6 +243,12 @@ export function setupTorusScene() {
   window.addEventListener("lapsa:letter-deselect", () => {
     console.log("[torus] letter deselected");
     clickPulse = 0;
+
+    // disable pointer (carousel and torus) tilt on deselect to prevent unwanted tilting when returning to main view
+    pointerTiltEnabled = false;
+    mouseTiltX = 0;
+    mouseTiltY = 0;
+    
     beginRotationToLetter(null);
   });
 
