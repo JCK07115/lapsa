@@ -1,5 +1,5 @@
 import { setupAlphabet } from './alphabet.js';
-import { setupMobiusScene } from './mobius.js';
+import { setupTorusScene } from './torus.js';
 
 setupAlphabet();
-setupMobiusScene();
+setupTorusScene();

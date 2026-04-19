@@ -34,11 +34,6 @@ canvas {
   z-index: -1;
 }
 
-body.in-letter-mode #torus-glow {
-  opacity: 1 !important;
-  transform: translate(-50%, -50%) scale(1.2);
-}
-
 #scroll-hint {
   position: fixed;
   bottom: 30px;
@@ -165,7 +160,8 @@ body.transitioning #alphabet-rail .letter-link.selected {
 }
 
 body.words-active #selected-letter-overlay.is-visible {
-  transform: translate(-50%, -50%) translateY(-72px) scale(0.9);
+  opacity: 0;
+  transform: translate(-50%, -50%) translateX(-18px) scale(0.82);
 }
 
 #letter-back-button {
@@ -194,6 +190,15 @@ body.words-active #selected-letter-overlay.is-visible {
   border-color: rgba(255,255,255,0.9);
   background: #ffffff;
   color: #1a1a1a;
+}
+
+body.in-letter-mode {
+  overflow: hidden;
+}
+
+body.in-letter-mode #torus-glow {
+  opacity: 1 !important;
+  transform: translate(-50%, -50%) scale(1.2);
 }
 
 body.in-letter-mode #letter-back-button {
@@ -240,7 +245,7 @@ body.transitioning #page-transition-veil {
   position: fixed;
   left: 50%;
   top: 50%;
-  width: min(60vw, 720px);
+  width: min(70vw, 840px);
   height: 260px;
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -264,10 +269,11 @@ body.words-active #word-carousel {
   line-height: 1;
   white-space: nowrap;
   opacity: 0;
+  will-change: transform, opacity, filter;
   transition:
-    transform 0.22s ease,
-    opacity 0.22s ease,
-    filter 0.22s ease;
+    transform 0.18s ease,
+    opacity 0.18s ease,
+    filter 0.18s ease;
 }
 
 @media (max-width: 700px) {

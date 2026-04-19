@@ -21,7 +21,9 @@ export function setupAlphabet() {
 
   const LEFT_COUNT = 13; // A-M left, N-Z right
 
-  // DICTIONARY OF WORDS FOR EACH LETTER (for word carousel overlay)
+
+  /* CAROUSEL */
+  // dictionary of words for each letter (for word carousel overlay)
   const letterWords = {
     A: ["Algorithm", "Aperture", "Ash", "Arc", "Anchor", "Axiom", "Afterimage", "Array", "Abyss", "Animal", "Altitude"]
   };
@@ -29,6 +31,11 @@ export function setupAlphabet() {
   let wordItems = [];
   let activeWordIndex = 0;
   let wordsAreActive = false;
+  let carouselProgress = 0;
+  let wheelLock = false;
+
+  let mouseTiltX = 0;
+  let mouseTiltY = 0;
 
   // RAILING LETTERS PROPERTIES
   letters.forEach((char, index) => {
@@ -252,13 +259,6 @@ export function setupAlphabet() {
 
   function handleScroll() {
     if (isLetterMode) {
-      if (wordsAreActive && wordItems.length > 0) {
-        const delta = window.scrollY - window.innerHeight;
-        const rawIndex = Math.max(0, delta / 140);
-        const maxIndex = Math.max(0, wordItems.length - 1);
-        activeWordIndex = Math.max(0, Math.min(maxIndex, rawIndex));
-        renderWordCarousel();
-      }
       return;
     }
 
@@ -280,22 +280,49 @@ export function setupAlphabet() {
     renderLetters();
   }
 
+  // wheel handler for word carousel navigation in letter mode
+  function handleWheel(event) {
+    if (!isLetterMode || !wordsAreActive || !wordItems.length) return;
+
+    event.preventDefault();
+
+    const delta = event.deltaY;
+    const maxProgress = Math.max(0, wordItems.length - 1);
+
+    carouselProgress += delta * 0.006;
+    carouselProgress = clamp(carouselProgress, 0, maxProgress);
+
+    activeWordIndex = carouselProgress;
+    renderWordCarousel();
+  }
+
+  function handleMouseMove(event) {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const nx = (event.clientX / vw) * 2 - 1;
+    const ny = (event.clientY / vh) * 2 - 1;
+
+    mouseTiltX = nx;
+    mouseTiltY = ny;
+
+    if (isLetterMode && wordsAreActive && wordItems.length) {
+      renderWordCarousel();
+    }
+  }
+
   // back button logic in letter mode
   if (backButton) {
     backButton.addEventListener("click", () => {
       if (!isLetterMode) return;
 
-      isLetterMode = false;
-      selectedChar = null;
       hoveredIndex = null;
+      selectedChar = null;
+      wordsAreActive = false;
+      carouselProgress = 0;
+      activeWordIndex = 0;
 
-      document.body.classList.remove("in-letter-mode");
-      document.body.classList.remove("transitioning");
       document.body.classList.remove("words-active");
-
-      letterLinks.forEach((link) => {
-        link.classList.remove("selected", "is-active", "is-near-1", "is-near-2");
-      });
 
       if (selectedLetterOverlay) {
         selectedLetterOverlay.classList.remove("is-visible");
@@ -312,9 +339,19 @@ export function setupAlphabet() {
         new CustomEvent("lapsa:letter-deselect")
       );
 
-      handleResize();
-      // computeLayout();
-      // renderLetters();
+      // Keep letter mode active during torus reset so rails stay hidden
+      setTimeout(() => {
+        isLetterMode = false;
+        document.body.classList.remove("in-letter-mode");
+        document.body.classList.remove("transitioning");
+
+        letterLinks.forEach((link) => {
+          link.classList.remove("selected", "is-active", "is-near-1", "is-near-2");
+        });
+
+        computeLayout();
+        renderLetters();
+      }, 1450);
     });
   }
 
@@ -356,9 +393,12 @@ export function setupAlphabet() {
       const href = link.href;
       const clickedChar = link.textContent;
 
+      // activate letter mode with the clicked character
       selectedChar = clickedChar;
       isLetterMode = true;
       wordsAreActive = false;
+      carouselProgress = 0;
+      activeWordIndex = 0;
 
       if (selectedLetterOverlay) {
         selectedLetterOverlay.textContent = clickedChar;
@@ -415,16 +455,22 @@ export function setupAlphabet() {
     wordCarousel.innerHTML = "";
     wordItems = [];
 
-    const words = letterWords[char] || [];
+    const words = [char, ...(letterWords[char] || [])];
 
-    words.forEach((word) => {
+    words.forEach((word, index) => {
       const el = document.createElement("div");
       el.className = "carousel-word";
       el.textContent = word;
+
+      if (index === 0) {
+        el.classList.add("carousel-word-letter");
+      }
+
       wordCarousel.appendChild(el);
       wordItems.push(el);
     });
 
+    carouselProgress = 0;
     activeWordIndex = 0;
     renderWordCarousel();
   }
@@ -433,25 +479,49 @@ export function setupAlphabet() {
     if (!wordItems.length) return;
 
     wordItems.forEach((el, index) => {
-      const distance = index - activeWordIndex;
+      const distance = index - carouselProgress;
       const absDistance = Math.abs(distance);
 
-      if (absDistance > 4) {
+      if (distance < -1.2 || distance > 6.5) {
         el.style.opacity = "0";
-        el.style.transform = `translate(-50%, -50%) translateY(0px) scale(0.7)`;
-        el.style.filter = "blur(4px)";
+        el.style.filter = "blur(8px)";
+        el.style.transform = `translate(-50%, -50%) translate3d(0px, 0px, 0px) scale(0.36)`;
         return;
       }
 
-      const y = distance * 28;
-      const scale = Math.max(0.62, 1 - absDistance * 0.12);
-      const opacity = Math.max(0.16, 1 - absDistance * 0.22);
-      const blur = absDistance * 0.8;
+      // Cursor-biased direction vector
+      const dirX = mouseTiltX * 34;
+      const dirY = mouseTiltY * 22;
+
+      if (distance < 0) {
+        const retreat = Math.abs(distance);
+        const scale = Math.max(0.68, 1 - retreat * 0.22);
+        const opacity = Math.max(0, 0.5 - retreat * 0.65);
+        const blur = retreat * 1.8;
+
+        const x = -retreat * 22 + dirX * retreat * 0.12;
+        const y = -retreat * 18 + dirY * retreat * 0.1;
+
+        el.style.opacity = String(opacity);
+        el.style.filter = `blur(${blur}px)`;
+        el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${scale})`;
+        el.style.zIndex = String(120 - Math.round(retreat * 10));
+        return;
+      }
+
+      // Words ahead recede into the torus center / horizon
+      const depth = distance;
+
+      const x = dirX * depth * 0.32;
+      const y = depth * 18 + dirY * depth * 0.22;
+      const scale = Math.max(0.26, 1 - depth * 0.18);
+      const opacity = Math.max(0.06, 1 - depth * 0.17);
+      const blur = depth * 1.35;
 
       el.style.opacity = String(opacity);
       el.style.filter = `blur(${blur}px)`;
-      el.style.transform = `translate(-50%, -50%) translateY(${y}px) scale(${scale})`;
-      el.style.zIndex = String(100 - absDistance);
+      el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${scale})`;
+      el.style.zIndex = String(140 - Math.round(depth * 10));
     });
   }
 
@@ -470,4 +540,6 @@ export function setupAlphabet() {
   // WINDOW EVENT LISTENERS
   window.addEventListener("scroll", handleScroll, { passive: true });
   window.addEventListener("resize", handleResize);
+  window.addEventListener("wheel", handleWheel, { passive: false });
+  window.addEventListener("mousemove", handleMouseMove);
 }
