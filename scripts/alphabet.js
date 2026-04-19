@@ -18,6 +18,7 @@ export function setupAlphabet() {
   let layoutCache = [];
   let isLetterMode = false;
   let selectedChar = null;
+  let railsVisible = false;
 
   const LEFT_COUNT = 13; // A-M left, N-Z right
 
@@ -67,53 +68,6 @@ export function setupAlphabet() {
       : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
-  function getScrollAssemblyProgress() {
-    const scrollY = window.scrollY;
-    const vh = window.innerHeight;
-
-    const showStart = 0.92 * vh;
-    const showEnd = 1.64 * vh;
-
-    const raw = (scrollY - showStart) / (showEnd - showStart);
-    return clamp(raw, 0, 1);
-  }
-
-  function computeCurvedStartPosition(isLeft, sideIndex, vw, vh, isMobile) {
-    const centerX = vw * 0.5;
-    const centerY = vh * 0.5;
-
-    // normalized: -1 at top, 0 at middle, +1 at bottom
-    const n = (sideIndex / (LEFT_COUNT - 1)) * 2 - 1;
-    const absN = Math.abs(n);
-
-    // vertical spread of the curved lobe
-    const curveHeight = isMobile ? vh * 0.22 : vh * 0.28;
-
-    // horizontal offset from center to place the lobe
-    const lobeOffsetX = isMobile ? vw * 0.12 : vw * 0.15;
-
-    // strongest at center, weaker at top/bottom
-    const curveBulge = 1 - n * n;
-
-    // outward push in the middle
-    const bulgeAmount = isMobile ? 42 : 72;
-
-    // NEW: inward pull at the tips
-    // strongest near top/bottom, fades toward middle
-    const tipPull = Math.pow(absN, 2.2);
-    const tipPullAmount = isMobile ? 20 : 36;
-
-    const baseX = centerX + (isLeft ? -lobeOffsetX : lobeOffsetX);
-
-    const outwardX = (isLeft ? -1 : 1) * curveBulge * bulgeAmount;
-    const inwardTipX = (isLeft ? 1 : -1) * tipPull * tipPullAmount;
-
-    const x = baseX + outwardX + inwardTipX;
-    const y = centerY + n * curveHeight;
-
-    return { x, y };
-  }
-
   function computeLayout() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -131,16 +85,12 @@ export function setupAlphabet() {
       const isLeft = index < LEFT_COUNT;
       const sideIndex = isLeft ? index : index - LEFT_COUNT;
 
-      const start = computeCurvedStartPosition(isLeft, sideIndex, vw, vh, isMobile);
-
       const endX = isLeft ? leftRailX : rightRailX;
       const endY = topMargin + sideIndex * step;
 
       return {
         isLeft,
         sideIndex,
-        startX: start.x,
-        startY: start.y,
         endX,
         endY
       };
@@ -183,7 +133,8 @@ export function setupAlphabet() {
   }
 
   function renderLetters() {
-    const progress = getScrollAssemblyProgress();
+    // don't use scroll progress as reveal interpolant (make it binary)
+    const progress = railsVisible ? 1 : 0;
     assemblyProgress = progress;
 
     const hoverReady = progress > 0.94 && !document.body.classList.contains("transitioning");
@@ -202,29 +153,20 @@ export function setupAlphabet() {
       return;
     }
 
-    const visibleProgress = clamp((progress - 0.04) / 0.96, 0, 1);
-    // const visibleProgress = clamp((progress - 0.0) / 1.0, 0, 1);
-
-    const baseT = easeInOutCubic(visibleProgress);
-
     letterLinks.forEach((link, index) => {
-      const { startX, startY, endX, endY } = layoutCache[index];
+      const { endX, endY } = layoutCache[index];
 
       const sideIndex = index < LEFT_COUNT ? index : index - LEFT_COUNT;
-      const stagger = sideIndex * 0.01;
-      const localRaw = clamp((visibleProgress - stagger) / (1 - stagger), 0, 1);
-      const t = easeOutCubic(localRaw);
+      const stagger = railsVisible ? sideIndex * 0.035 : 0;
+      // const t = railsVisible ? 1 - stagger : 0;
 
-      const x = lerp(startX, endX, t);
-      const y = lerp(startY, endY, t);
+      const x = endX;
+      const y = endY;
 
-      let opacity = 0;
-      if (progress > 0.03) {
-        opacity = lerp(0, 0.92, baseT);
-      }
-      // const opacity = lerp(0.18, 0.92, baseT);
+      const opacity = railsVisible ? 0.92 : 0;
+      const blur = railsVisible ? 0 : 8;
 
-      let baseScale = lerp(0.88, 1.0, t);
+      let baseScale = railsVisible ? 1.0 : 0.92;
 
       let hoverScale = 1;
       if (hoverReady && hoveredIndex !== null) {
@@ -245,6 +187,7 @@ export function setupAlphabet() {
       }
 
       link.style.opacity = String(opacity);
+      link.style.filter = `blur(${blur}px)`;
       link.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${baseScale * hoverScale})`;
     });
 
@@ -261,6 +204,9 @@ export function setupAlphabet() {
     if (isLetterMode) {
       return;
     }
+
+    // update visibility before rendering
+    updateRailVisibilityFromScroll();
 
     if (!document.body.classList.contains("transitioning")) {
       const scrollY = window.scrollY;
@@ -532,6 +478,20 @@ function renderWordCarousel() {
     activeWordIndex = 0;
     wordsAreActive = false;
     document.body.classList.remove("words-active");
+  }
+
+  function updateRailVisibilityFromScroll() {
+    const scrollY = window.scrollY;
+    const vh = window.innerHeight;
+
+    const revealThreshold = 0.52 * vh;
+    const hideThreshold = 0.14 * vh;
+
+    if (!railsVisible && scrollY >= revealThreshold) {
+      railsVisible = true;
+    } else if (railsVisible && scrollY <= hideThreshold) {
+      railsVisible = false;
+    }
   }
 
   computeLayout();

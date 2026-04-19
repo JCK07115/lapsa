@@ -76,9 +76,11 @@ canvas {
   transition:
     color 0.18s ease,
     background-color 0.18s ease,
-    opacity 0.18s ease,
+    opacity 0.55s ease,
+    filter 0.7s ease,
+    transform 0.55s ease,
     letter-spacing 0.18s ease;
-  will-change: transform, opacity;
+  will-change: transform, opacity, filter;
   user-select: none;
 }
 
@@ -192,7 +194,8 @@ body.words-active #selected-letter-overlay.is-visible {
   color: #1a1a1a;
 }
 
-body.in-letter-mode {
+/* body.in-letter-mode { */
+body.in-letter {
   overflow: hidden;
 }
 
@@ -274,6 +277,15 @@ body.words-active #word-carousel {
     transform 0.18s ease,
     opacity 0.18s ease,
     filter 0.18s ease;
+}
+
+html, body {
+  scrollbar-width: none; /* Firefox */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
 }
 
 @media (max-width: 700px) {
