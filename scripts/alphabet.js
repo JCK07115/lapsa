@@ -481,55 +481,49 @@ export function setupAlphabet() {
     renderWordCarousel();
   }
 
-  function renderWordCarousel() {
-    if (!wordItems.length) return;
+function renderWordCarousel() {
+  if (!wordItems.length) return;
 
-    wordItems.forEach((el, index) => {
-      const distance = index - carouselProgress;
-      const absDistance = Math.abs(distance);
+  const dirX = mouseTiltX * 42;
+  const dirY = mouseTiltY * 28;
 
-      // show a limited neighborhood around the focused word
-      if (absDistance > 3.2) {
-        el.style.opacity = "0";
-        el.style.filter = "blur(8px)";
-        el.style.transform = `translate(-50%, -50%) translate3d(0px, 0px, 0px) scale(0.32)`;
-        return;
-      }
+  wordItems.forEach((el, index) => {
+    const distance = index - carouselProgress;
+    const absDistance = Math.abs(distance);
 
-      // cursor direction
-      const dirX = mouseTiltX;
-      const dirY = mouseTiltY;
+    // only show a focused neighborhood
+    if (absDistance > 3.2) {
+      el.style.opacity = "0";
+      el.style.filter = "blur(8px)";
+      el.style.transform = `translate(-50%, -50%) translate(0px, 0px) scale(0.32)`;
+      return;
+    }
 
-      // words closer to the focused one react more strongly
-      const influence = Math.max(0.18, 1 - absDistance * 0.24);
+    // all words align along one shared mouse-defined axis
+    const axisX = distance * dirX * 0.55;
+    const axisY = distance * dirY * 0.55;
 
-      // fake depth:
-      // - center word stays centered
-      // - negative distance = "in front of" current word
-      // - positive distance = "behind" current word, deeper into torus
-      //
-      // We keep screen-space offsets subtle so it reads as depth, not a row.
-      const depthOffsetY = distance * 14;
-      const depthOffsetX = distance * 6;
+    // add subtle default depth drift so the stack still reads in/out of screen
+    const depthX = distance * 6
+    const depthY = distance * 18;
 
-      const mouseX = dirX * 34 * influence;
-      const mouseY = dirY * 22 * influence;
+    const x = axisX + depthX;
+    const y = axisY + depthY;
 
-      // scale + blur + opacity sell the in/out-of-screen effect
-      const scale = Math.max(0.34, 1 - absDistance * 0.18);
-      const opacity = Math.max(0.08, 1 - absDistance * 0.24);
-      const blur = absDistance * 1.4;
+    const scale = Math.max(0.34, 1 - absDistance * 0.18);
+    const opacity = Math.max(0.08, 1 - absDistance * 0.24);
+    const blur = absDistance * 1.4;
 
-      el.style.opacity = String(opacity);
-      el.style.filter = `blur(${blur}px)`;
-      el.style.transform = `
-        translate(-50%, -50%)
-        translate(${depthOffsetX + mouseX}px, ${depthOffsetY + mouseY}px)
-        scale(${scale})
-      `;
-      el.style.zIndex = String(200 - Math.round(absDistance * 20));
-    });
-  }
+    el.style.opacity = String(opacity);
+    el.style.filter = `blur(${blur}px)`;
+    el.style.transform = `
+      translate(-50%, -50%)
+      translate(${x}px, ${y}px)
+      scale(${scale})
+    `;
+    el.style.zIndex = String(200 - Math.round(absDistance * 20));
+  });
+}
 
   function clearWordCarousel() {
     if (!wordCarousel) return;
