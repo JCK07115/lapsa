@@ -1,20 +1,36 @@
 export function setupAlphabet() {
+  // reference to DOM elements 
   const rail = document.getElementById("alphabet-rail");
   const torusGlow = document.getElementById("torus-glow");
   const scrollHint = document.getElementById("scroll-hint");
   const selectedLetterOverlay = document.getElementById("selected-letter-overlay");
+  const backButton = document.getElementById("letter-back-button");
+  const wordCarousel = document.getElementById("word-carousel");
 
   if (!rail) return;
 
+  // LOCAL VARIABLES
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const letterLinks = [];
 
   let hoveredIndex = null;
   let assemblyProgress = 0;
   let layoutCache = [];
+  let isLetterMode = false;
+  let selectedChar = null;
 
   const LEFT_COUNT = 13; // A-M left, N-Z right
 
+  // DICTIONARY OF WORDS FOR EACH LETTER (for word carousel overlay)
+  const letterWords = {
+    A: ["Algorithm", "Aperture", "Ash", "Arc", "Anchor", "Axiom", "Afterimage", "Array", "Abyss", "Animal", "Altitude"]
+  };
+
+  let wordItems = [];
+  let activeWordIndex = 0;
+  let wordsAreActive = false;
+
+  // RAILING LETTERS PROPERTIES
   letters.forEach((char, index) => {
     const link = document.createElement("a");
     link.href = `letter.html?char=${encodeURIComponent(char)}`;
@@ -171,9 +187,17 @@ export function setupAlphabet() {
       clearHoverStates();
     }
 
+    if (isLetterMode) {
+      rail.style.pointerEvents = "none";
+      letterLinks.forEach((link) => {
+        link.style.opacity = "0";
+      });
+      return;
+    }
+
     const visibleProgress = clamp((progress - 0.04) / 0.96, 0, 1);
     // const visibleProgress = clamp((progress - 0.0) / 1.0, 0, 1);
-    
+
     const baseT = easeInOutCubic(visibleProgress);
 
     letterLinks.forEach((link, index) => {
@@ -227,6 +251,17 @@ export function setupAlphabet() {
   }
 
   function handleScroll() {
+    if (isLetterMode) {
+      if (wordsAreActive && wordItems.length > 0) {
+        const delta = window.scrollY - window.innerHeight;
+        const rawIndex = Math.max(0, delta / 140);
+        const maxIndex = Math.max(0, wordItems.length - 1);
+        activeWordIndex = Math.max(0, Math.min(maxIndex, rawIndex));
+        renderWordCarousel();
+      }
+      return;
+    }
+
     if (!document.body.classList.contains("transitioning")) {
       const scrollY = window.scrollY;
       const vh = window.innerHeight;
@@ -245,7 +280,46 @@ export function setupAlphabet() {
     renderLetters();
   }
 
-    letterLinks.forEach((link, index) => {
+  // back button logic in letter mode
+  if (backButton) {
+    backButton.addEventListener("click", () => {
+      if (!isLetterMode) return;
+
+      isLetterMode = false;
+      selectedChar = null;
+      hoveredIndex = null;
+
+      document.body.classList.remove("in-letter-mode");
+      document.body.classList.remove("transitioning");
+      document.body.classList.remove("words-active");
+
+      letterLinks.forEach((link) => {
+        link.classList.remove("selected", "is-active", "is-near-1", "is-near-2");
+      });
+
+      if (selectedLetterOverlay) {
+        selectedLetterOverlay.classList.remove("is-visible");
+        selectedLetterOverlay.textContent = "";
+      }
+
+      clearWordCarousel();
+
+      if (torusGlow) {
+        torusGlow.style.opacity = "0";
+      }
+
+      window.dispatchEvent(
+        new CustomEvent("lapsa:letter-deselect")
+      );
+
+      handleResize();
+      // computeLayout();
+      // renderLetters();
+    });
+  }
+
+  // event listeners for rail letter selection
+  letterLinks.forEach((link, index) => {
     link.addEventListener("mouseenter", () => {
       if (assemblyProgress < 0.94) return;
       if (document.body.classList.contains("transitioning")) return;
@@ -277,24 +351,32 @@ export function setupAlphabet() {
       event.preventDefault();
       if (assemblyProgress < 0.94) return;
       if (document.body.classList.contains("transitioning")) return;
+      if (isLetterMode) return;
 
       const href = link.href;
-      const selectedChar = link.textContent;
+      const clickedChar = link.textContent;
+
+      selectedChar = clickedChar;
+      isLetterMode = true;
+      wordsAreActive = false;
 
       if (selectedLetterOverlay) {
-        selectedLetterOverlay.textContent = selectedChar;
+        selectedLetterOverlay.textContent = clickedChar;
         selectedLetterOverlay.classList.remove("is-visible");
       }
 
+      clearWordCarousel();
+
       window.dispatchEvent(
         new CustomEvent("lapsa:letter-select", {
-          detail: { char: selectedChar, index, href }
+          detail: { char: clickedChar, index, href }
         })
       );
 
-      document.body.classList.add("transitioning");
+      document.body.classList.add("in-letter-mode");
       link.classList.add("selected");
-      hoveredIndex = index;
+      hoveredIndex = null;
+      clearHoverStates();
 
       if (torusGlow) {
         torusGlow.style.opacity = "1";
@@ -309,11 +391,15 @@ export function setupAlphabet() {
       }
 
       setTimeout(() => {
-        // window.location.href = href;
-      }, 2600);
+        buildWordCarousel(clickedChar);
+        wordsAreActive = true;
+        document.body.classList.add("words-active");
+        renderWordCarousel();
+      }, 1850);
     });
   });
 
+  // event listeners for rails
   rail.addEventListener("mouseleave", () => {
     if (document.body.classList.contains("transitioning")) return;
 
@@ -322,9 +408,66 @@ export function setupAlphabet() {
     renderLetters();
   });
 
+  // CAROUSEL LOGIC FOR WORDS ASSOCIATED WITH EACH LETTER
+  function buildWordCarousel(char) {
+    if (!wordCarousel) return;
+
+    wordCarousel.innerHTML = "";
+    wordItems = [];
+
+    const words = letterWords[char] || [];
+
+    words.forEach((word) => {
+      const el = document.createElement("div");
+      el.className = "carousel-word";
+      el.textContent = word;
+      wordCarousel.appendChild(el);
+      wordItems.push(el);
+    });
+
+    activeWordIndex = 0;
+    renderWordCarousel();
+  }
+
+  function renderWordCarousel() {
+    if (!wordItems.length) return;
+
+    wordItems.forEach((el, index) => {
+      const distance = index - activeWordIndex;
+      const absDistance = Math.abs(distance);
+
+      if (absDistance > 4) {
+        el.style.opacity = "0";
+        el.style.transform = `translate(-50%, -50%) translateY(0px) scale(0.7)`;
+        el.style.filter = "blur(4px)";
+        return;
+      }
+
+      const y = distance * 28;
+      const scale = Math.max(0.62, 1 - absDistance * 0.12);
+      const opacity = Math.max(0.16, 1 - absDistance * 0.22);
+      const blur = absDistance * 0.8;
+
+      el.style.opacity = String(opacity);
+      el.style.filter = `blur(${blur}px)`;
+      el.style.transform = `translate(-50%, -50%) translateY(${y}px) scale(${scale})`;
+      el.style.zIndex = String(100 - absDistance);
+    });
+  }
+
+  function clearWordCarousel() {
+    if (!wordCarousel) return;
+    wordCarousel.innerHTML = "";
+    wordItems = [];
+    activeWordIndex = 0;
+    wordsAreActive = false;
+    document.body.classList.remove("words-active");
+  }
+
   computeLayout();
   renderLetters();
 
+  // WINDOW EVENT LISTENERS
   window.addEventListener("scroll", handleScroll, { passive: true });
   window.addEventListener("resize", handleResize);
 }

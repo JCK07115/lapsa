@@ -61,7 +61,9 @@ export function setupMobiusScene() {
   }
 
   function beginRotationToLetter(char) {
-    const preset = letterRotationPresets[char] || letterRotationPresets.default || neutralRotation;
+    const preset = char
+      ? (letterRotationPresets[char] || letterRotationPresets.default || neutralRotation)
+      : neutralRotation;
 
     Object.assign(startRotation, currentRotation);
     Object.assign(targetRotation, preset);
@@ -164,15 +166,24 @@ export function setupMobiusScene() {
   let phase = 0;
   let clickPulse = 0;
 
+  // rotate mobius when a letter is selected
   window.addEventListener("lapsa:letter-select", (event) => {
     const { char, index, href } = event.detail || {};
-
+    
     console.log("[mobius] letter selected:", char, index, href);
-
+    
     clickPulse = 1;
     beginRotationToLetter(char);
   });
+  
+  // undo mobius rotation to default when back button is clicked (letter deselection)
+  window.addEventListener("lapsa:letter-deselect", () => {
+    console.log("[mobius] letter deselected");
+    clickPulse = 0;
+    beginRotationToLetter(null);
+  });
 
+  // update mobius geometry to create smooth transition
   function updateFlow(currentPhase) {
     let index = 0;
 

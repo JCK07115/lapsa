@@ -10,6 +10,7 @@ canvas {
   z-index: -2;
 }
 
+/* TORUS */
 #torus-glow {
   position: fixed;
   left: 50%;
@@ -33,6 +34,11 @@ canvas {
   z-index: -1;
 }
 
+body.in-letter-mode #torus-glow {
+  opacity: 1 !important;
+  transform: translate(-50%, -50%) scale(1.2);
+}
+
 #scroll-hint {
   position: fixed;
   bottom: 30px;
@@ -52,6 +58,7 @@ canvas {
   z-index: 5;
 }
 
+/* LETTERS */
 /* Each letter is absolutely placed by JS */
 .letter-link {
   position: absolute;
@@ -140,7 +147,7 @@ body.transitioning #alphabet-rail .letter-link.selected {
   transform: translate(-50%, -50%) scale(0.94);
   color: #111111;
   font-family: inherit;
-  font-size: clamp(2.75rem, 7vw, 5rem);
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0.01em;
@@ -157,6 +164,57 @@ body.transitioning #alphabet-rail .letter-link.selected {
   transform: translate(-50%, -50%) scale(1);
 }
 
+body.words-active #selected-letter-overlay.is-visible {
+  transform: translate(-50%, -50%) translateY(-72px) scale(0.9);
+}
+
+#letter-back-button {
+  position: fixed;
+  left: 28px;
+  top: 24px;
+  z-index: 8;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.04);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 10px 12px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.3s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+#letter-back-button:hover {
+  border-color: rgba(255,255,255,0.9);
+  background: #ffffff;
+  color: #1a1a1a;
+}
+
+body.in-letter-mode #letter-back-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+body.in-letter-mode #alphabet-rail {
+  pointer-events: none !important;
+}
+
+body.in-letter-mode #alphabet-rail .letter-link {
+  opacity: 0 !important;
+  filter: blur(3px);
+}
+
+body.in-letter-mode #scroll-hint {
+  opacity: 0 !important;
+}
+
+/* TRANSITION VEIL */
 #page-transition-veil {
   position: fixed;
   inset: 0;
@@ -175,6 +233,41 @@ body.transitioning #alphabet-rail .letter-link.selected {
 
 body.transitioning #page-transition-veil {
   opacity: 1;
+}
+
+/* WORD CAROUSEL */
+#word-carousel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: min(60vw, 720px);
+  height: 260px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 6;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+body.words-active #word-carousel {
+  opacity: 1;
+}
+
+.carousel-word {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  transition:
+    transform 0.22s ease,
+    opacity 0.22s ease,
+    filter 0.22s ease;
 }
 
 @media (max-width: 700px) {
