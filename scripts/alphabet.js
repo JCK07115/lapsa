@@ -306,6 +306,12 @@ export function setupAlphabet() {
     mouseTiltX = nx;
     mouseTiltY = ny;
 
+    window.dispatchEvent(
+      new CustomEvent("lapsa:pointer-move", {
+        detail: { x: nx, y: ny }
+      })
+    );
+
     if (isLetterMode && wordsAreActive && wordItems.length) {
       renderWordCarousel();
     }
@@ -482,46 +488,46 @@ export function setupAlphabet() {
       const distance = index - carouselProgress;
       const absDistance = Math.abs(distance);
 
-      if (distance < -1.2 || distance > 6.5) {
+      // show a limited neighborhood around the focused word
+      if (absDistance > 3.2) {
         el.style.opacity = "0";
         el.style.filter = "blur(8px)";
-        el.style.transform = `translate(-50%, -50%) translate3d(0px, 0px, 0px) scale(0.36)`;
+        el.style.transform = `translate(-50%, -50%) translate3d(0px, 0px, 0px) scale(0.32)`;
         return;
       }
 
-      // Cursor-biased direction vector
-      const dirX = mouseTiltX * 34;
-      const dirY = mouseTiltY * 22;
+      // cursor direction
+      const dirX = mouseTiltX;
+      const dirY = mouseTiltY;
 
-      if (distance < 0) {
-        const retreat = Math.abs(distance);
-        const scale = Math.max(0.68, 1 - retreat * 0.22);
-        const opacity = Math.max(0, 0.5 - retreat * 0.65);
-        const blur = retreat * 1.8;
+      // words closer to the focused one react more strongly
+      const influence = Math.max(0.18, 1 - absDistance * 0.24);
 
-        const x = -retreat * 22 + dirX * retreat * 0.12;
-        const y = -retreat * 18 + dirY * retreat * 0.1;
+      // fake depth:
+      // - center word stays centered
+      // - negative distance = "in front of" current word
+      // - positive distance = "behind" current word, deeper into torus
+      //
+      // We keep screen-space offsets subtle so it reads as depth, not a row.
+      const depthOffsetY = distance * 14;
+      const depthOffsetX = distance * 6;
 
-        el.style.opacity = String(opacity);
-        el.style.filter = `blur(${blur}px)`;
-        el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${scale})`;
-        el.style.zIndex = String(120 - Math.round(retreat * 10));
-        return;
-      }
+      const mouseX = dirX * 34 * influence;
+      const mouseY = dirY * 22 * influence;
 
-      // Words ahead recede into the torus center / horizon
-      const depth = distance;
-
-      const x = dirX * depth * 0.32;
-      const y = depth * 18 + dirY * depth * 0.22;
-      const scale = Math.max(0.26, 1 - depth * 0.18);
-      const opacity = Math.max(0.06, 1 - depth * 0.17);
-      const blur = depth * 1.35;
+      // scale + blur + opacity sell the in/out-of-screen effect
+      const scale = Math.max(0.34, 1 - absDistance * 0.18);
+      const opacity = Math.max(0.08, 1 - absDistance * 0.24);
+      const blur = absDistance * 1.4;
 
       el.style.opacity = String(opacity);
       el.style.filter = `blur(${blur}px)`;
-      el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${scale})`;
-      el.style.zIndex = String(140 - Math.round(depth * 10));
+      el.style.transform = `
+        translate(-50%, -50%)
+        translate(${depthOffsetX + mouseX}px, ${depthOffsetY + mouseY}px)
+        scale(${scale})
+      `;
+      el.style.zIndex = String(200 - Math.round(absDistance * 20));
     });
   }
 

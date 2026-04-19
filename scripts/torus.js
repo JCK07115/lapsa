@@ -24,6 +24,13 @@ export function setupTorusScene() {
   const r = 0.55;
   const INDENT = 1.8;
 
+  let mouseTiltX = 0;
+  let mouseTiltY = 0;
+  // let mouseTiltZ = 0;
+  let currentMouseLeanX = 0;
+  let currentMouseLeanY = 0;
+  // let currentMouseLeanZ = 0;
+
   const neutralRotation = {
     x: THREE.MathUtils.degToRad(-8),
     y: THREE.MathUtils.degToRad(40),
@@ -153,36 +160,6 @@ export function setupTorusScene() {
 
   adjustCameraDistance();
 
-  window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    adjustCameraDistance();
-  });
-
-  const positionAttr = geometry.attributes.position;
-  const tmp = new THREE.Vector3();
-  let phase = 0;
-  let clickPulse = 0;
-
-  // rotate torus when a letter is selected
-  window.addEventListener("lapsa:letter-select", (event) => {
-    const { char, index, href } = event.detail || {};
-    
-    console.log("[torus] letter selected:", char, index, href);
-    
-    clickPulse = 1;
-    beginRotationToLetter(char);
-  });
-  
-  // undo torus rotation to default when back button is clicked (letter deselection)
-  window.addEventListener("lapsa:letter-deselect", () => {
-    console.log("[torus] letter deselected");
-    clickPulse = 0;
-    beginRotationToLetter(null);
-  });
-
   // update torus geometry to create smooth transition
   function updateFlow(currentPhase) {
     let index = 0;
@@ -217,14 +194,60 @@ export function setupTorusScene() {
 
     const pulseT = clickPulse;
 
-    group.rotation.x = currentRotation.x;
-    group.rotation.y = currentRotation.y;
+    const inLetterMode = document.body.classList.contains("in-letter-mode");
+    const targetLeanX = inLetterMode ? mouseTiltY * 0.04 : 0;
+    const targetLeanY = inLetterMode ? mouseTiltX * 0.04 : 0;
+    // const targetLeanZ = inLetterMode ? mouseTiltZ * 0.6 : 0;
+    
+    currentMouseLeanX += (targetLeanX - currentMouseLeanX) * 0.08;
+    currentMouseLeanY += (targetLeanY - currentMouseLeanY) * 0.08;
+    // currentMouseLeanZ += (targetLeanZ - currentMouseLeanZ) * 0.08;
+
+    group.rotation.x = currentRotation.x + currentMouseLeanX;
+    group.rotation.y = currentRotation.y + currentMouseLeanY;
     group.rotation.z = currentRotation.z;
+
     group.scale.setScalar(0.7 + pulseT * 0.05);
     wireframeMaterial.opacity = 0.9 + pulseT * 0.1;
 
     renderer.render(scene, camera);
   }
+
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    adjustCameraDistance();
+  });
+
+  const positionAttr = geometry.attributes.position;
+  const tmp = new THREE.Vector3();
+  let phase = 0;
+  let clickPulse = 0;
+
+  // rotate torus when a letter is selected
+  window.addEventListener("lapsa:letter-select", (event) => {
+    const { char, index, href } = event.detail || {};
+    
+    console.log("[torus] letter selected:", char, index, href);
+    
+    clickPulse = 1;
+    beginRotationToLetter(char);
+  });
+  
+  // undo torus rotation to default when back button is clicked (letter deselection)
+  window.addEventListener("lapsa:letter-deselect", () => {
+    console.log("[torus] letter deselected");
+    clickPulse = 0;
+    beginRotationToLetter(null);
+  });
+
+  window.addEventListener("lapsa:pointer-move", (event) => {
+    const { x = 0, y = 0 } = event.detail || {};
+    mouseTiltX = x;
+    mouseTiltY = y;
+  });
 
   animate();
 }
