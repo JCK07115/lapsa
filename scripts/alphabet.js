@@ -484,8 +484,8 @@ function renderWordCarousel() {
     const scrollY = window.scrollY;
     const vh = window.innerHeight;
 
-    const revealThreshold = 0.52 * vh;
-    const hideThreshold = 0.14 * vh;
+    const revealThreshold = 0.45 * vh;  
+    const hideThreshold = 0.42 * vh;    // should be less than reveal threshold to prevent jitter, but low enough to allow quick scrolls to still hide the rails, so keep it close to reveal threshold
 
     if (!railsVisible && scrollY >= revealThreshold) {
       railsVisible = true;
