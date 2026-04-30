@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LAPSA Shop</title>
+    <link rel="stylesheet" href="styles/base.css" />
+    <style>
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background: #1a1a1a;
+        color: #ffffff;
+      }
+
+      .shop-page {
+        width: min(1100px, 92vw);
+        margin: 0 auto;
+        padding: 48px 0 72px;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-bottom: 40px;
+        color: #ffffff;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(255,255,255,0.4);
+        padding-bottom: 4px;
+      }
+
+      .back-link:hover {
+        background: #ffffff;
+        color: #1a1a1a;
+      }
+
+      .hero {
+        margin-bottom: 48px;
+      }
+
+      .hero h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2.5rem, 7vw, 5rem);
+        line-height: 1;
+      }
+
+      .hero p {
+        margin: 0;
+        color: rgba(255,255,255,0.72);
+        max-width: 700px;
+      }
+
+      .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+      }
+
+      .product-card {
+        border: 1px solid rgba(255,255,255,0.18);
+        padding: 18px;
+        background: rgba(255,255,255,0.03);
+      }
+
+      .product-thumb {
+        height: 180px;
+        border: 1px solid rgba(255,255,255,0.12);
+        display: grid;
+        place-items: center;
+        margin-bottom: 16px;
+        color: rgba(255,255,255,0.5);
+        font-size: 0.95rem;
+      }
+
+      .product-card h2 {
+        margin: 0 0 8px;
+        font-size: 1.1rem;
+      }
+
+      .product-card p {
+        margin: 0 0 14px;
+        color: rgba(255,255,255,0.7);
+        font-size: 0.95rem;
+      }
+
+      .price {
+        font-size: 0.95rem;
+        color: #ffffff;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shop-page">
+      <a class="back-link" href="index.html">Back to LAPSA</a>
+
+      <section class="hero">
+        <h1 id="shop-word">Word</h1>
+        <p>
+          A first-pass static mock shopping page for the selected word. Future versions
+          can deepen the product flow after purchase behavior is defined.
+        </p>
+      </section>
+
+      <section class="product-grid">
+        <article class="product-card">
+          <div class="product-thumb" id="thumb-hat">Word Hat Mockup</div>
+          <h2 id="title-hat">Word Hat</h2>
+          <p>Minimal embroidered cap featuring the selected word.</p>
+          <div class="price">\$28</div>
+        </article>
+
+        <article class="product-card">
+          <div class="product-thumb" id="thumb-tee">Word Tee Mockup</div>
+          <h2 id="title-tee">Word T-Shirt</h2>
+          <p>Soft cotton tee with clean front-word treatment.</p>
+          <div class="price">\$36</div>
+        </article>
+
+        <article class="product-card">
+          <div class="product-thumb" id="thumb-hoodie">Word Hoodie Mockup</div>
+          <h2 id="title-hoodie">Word Hoodie</h2>
+          <p>Heavier-weight hoodie with centered word placement.</p>
+          <div class="price">\$62</div>
+        </article>
+
+        <article class="product-card">
+          <div class="product-thumb" id="thumb-tote">Word Tote Mockup</div>
+          <h2 id="title-tote">Word Tote</h2>
+          <p>Simple tote variation for the MVP merchandise concept.</p>
+          <div class="price">\$24</div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const word = params.get("word") || "Word";
+
+      document.title = `${word} — LAPSA Shop`;
+      document.getElementById("shop-word").textContent = word;
+
+      document.getElementById("thumb-hat").textContent = `${word} Hat Mockup`;
+      document.getElementById("thumb-tee").textContent = `${word} Tee Mockup`;
+      document.getElementById("thumb-hoodie").textContent = `${word} Hoodie Mockup`;
+      document.getElementById("thumb-tote").textContent = `${word} Tote Mockup`;
+
+      document.getElementById("title-hat").textContent = `${word} Hat`;
+      document.getElementById("title-tee").textContent = `${word} T-Shirt`;
+      document.getElementById("title-hoodie").textContent = `${word} Hoodie`;
+      document.getElementById("title-tote").textContent = `${word} Tote`;
+    </script>
+  </body>
+</html>

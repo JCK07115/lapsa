@@ -194,9 +194,10 @@ body.words-active #selected-letter-overlay.is-visible {
   color: #1a1a1a;
 }
 
-/* body.in-letter-mode { */
-body.in-letter {
+/* body.in-letter {  */
+body.in-letter-mode {
   overflow: hidden;
+  cursor: none;
 }
 
 body.in-letter-mode #torus-glow {
@@ -220,6 +221,54 @@ body.in-letter-mode #alphabet-rail .letter-link {
 
 body.in-letter-mode #scroll-hint {
   opacity: 0 !important;
+}
+
+#select-instruction {
+  position: fixed;
+  right: 28px;
+  top: 24px;
+  z-index: 20;
+  color: rgba(255,255,255,0.72);
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+body.in-letter-mode #select-instruction {
+  opacity: 1;
+}
+
+/* custom click-and-hold cursor */
+#hold-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
+  margin-top: -11px;
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 40;
+  overflow: hidden;
+  transition: opacity 0.18s ease, transform 0.12s ease;
+}
+
+#hold-cursor-fill {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.92);
+  transform: scaleY(0);
+  transform-origin: bottom center;
+  transition: transform 0.06s linear;
+}
+
+body.in-letter-mode #hold-cursor {
+  opacity: 1;
 }
 
 /* TRANSITION VEIL */
@@ -277,6 +326,11 @@ body.words-active #word-carousel {
     transform 0.18s ease,
     opacity 0.18s ease,
     filter 0.18s ease;
+  pointer-events: none;
+}
+
+.carousel-word.is-selectable {
+  pointer-events: auto;
 }
 
 html, body {

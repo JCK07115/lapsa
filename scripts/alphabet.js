@@ -6,6 +6,9 @@ export function setupAlphabet() {
   const selectedLetterOverlay = document.getElementById("selected-letter-overlay");
   const backButton = document.getElementById("letter-back-button");
   const wordCarousel = document.getElementById("word-carousel");
+  const selectInstruction = document.getElementById("select-instruction");
+  const holdCursor = document.getElementById("hold-cursor");
+  const holdCursorFill = document.getElementById("hold-cursor-fill");
 
   if (!rail) return;
 
@@ -13,6 +16,7 @@ export function setupAlphabet() {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const letterLinks = [];
 
+  // STATE VARIABLES
   let hoveredIndex = null;
   let assemblyProgress = 0;
   let layoutCache = [];
@@ -49,6 +53,17 @@ export function setupAlphabet() {
     rail.appendChild(link);
     letterLinks.push(link);
   });
+
+  // CUSTOM LETTER-MODE CURSOR AND HOLD-TO-SELECT WORD PROPERTIES
+  let hoveredSelectableWord = null;
+  let mouseClientX = 0;
+  let mouseClientY = 0;
+
+  let holdTargetWord = null;
+  let holdStartTime = 0;
+  let holdDuration = 700;
+  let isHoldingSelect = false;
+  let holdRaf = null;
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
@@ -243,6 +258,7 @@ export function setupAlphabet() {
   }
 
   function handleMouseMove(event) {
+    /* update mouse tilt values for word carousel */
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
@@ -261,6 +277,27 @@ export function setupAlphabet() {
     if (isLetterMode && wordsAreActive && wordItems.length) {
       renderWordCarousel();
     }
+
+    /* custom cursor follows mouse in letter mode */
+    mouseClientX = event.clientX;
+    mouseClientY = event.clientY;
+
+    if (holdCursor) {
+      holdCursor.style.transform = `translate(${mouseClientX}px, ${mouseClientY}px)`;
+    }
+  }
+
+  function handleGlobalMouseDown(event) {
+    if (event.button !== 0) return;
+    if (!isLetterMode) return;
+
+    const backButtonClicked = event.target.closest("#letter-back-button");
+    if (backButtonClicked) return;
+
+    const focusedWord = getFocusedCarouselWord();
+    if (!focusedWord) return;
+
+    startHoldSelection(focusedWord);
   }
 
   // back button logic in letter mode
@@ -273,6 +310,10 @@ export function setupAlphabet() {
       wordsAreActive = false;
       carouselProgress = 0;
       activeWordIndex = 0;
+
+      // reset prior held state
+      hoveredSelectableWord = null;
+      cancelHoldSelection();
 
       document.body.classList.remove("words-active");
 
@@ -427,57 +468,73 @@ export function setupAlphabet() {
     renderWordCarousel();
   }
 
-function renderWordCarousel() {
-  if (!wordItems.length) return;
+  function renderWordCarousel() {
+    if (!wordItems.length) return;
 
-  const dirX = mouseTiltX * 42;
-  const dirY = mouseTiltY * 28;
+    const dirX = mouseTiltX * 42;
+    const dirY = mouseTiltY * 28;
 
-  wordItems.forEach((el, index) => {
-    const distance = index - carouselProgress;
-    const absDistance = Math.abs(distance);
+    wordItems.forEach((el, index) => {
+      const distance = index - carouselProgress;
+      const absDistance = Math.abs(distance);
 
-    // only show a focused neighborhood
-    if (absDistance > 3.2) {
-      el.style.opacity = "0";
-      el.style.filter = "blur(8px)";
-      el.style.transform = `translate(-50%, -50%) translate(0px, 0px) scale(0.32)`;
-      return;
-    }
+      // only show a focused neighborhood
+      if (absDistance > 3.2) {
+        el.style.opacity = "0";
+        el.style.filter = "blur(8px)";
+        el.style.transform = `translate(-50%, -50%) translate(0px, 0px) scale(0.32)`;
+        return;
+      }
 
-    // all words align along one shared mouse-defined axis
-    const axisX = distance * dirX * 0.55;
-    const axisY = distance * dirY * 0.55;
+      // all words align along one shared mouse-defined axis
+      const axisX = distance * dirX * 0.55;
+      const axisY = distance * dirY * 0.55;
 
-    // add subtle default depth drift so the stack still reads in/out of screen
-    const depthX = distance * 6
-    const depthY = distance * 18;
+      // add subtle default depth drift so the stack still reads in/out of screen
+      const depthX = distance * 6
+      const depthY = distance * 18;
 
-    const x = axisX + depthX;
-    const y = axisY + depthY;
+      const x = axisX + depthX;
+      const y = axisY + depthY;
 
-    const scale = Math.max(0.34, 1 - absDistance * 0.18);
-    const opacity = Math.max(0.08, 1 - absDistance * 0.24);
-    const blur = absDistance * 1.4;
+      const scale = Math.max(0.34, 1 - absDistance * 0.18);
+      const opacity = Math.max(0.08, 1 - absDistance * 0.24);
+      const blur = absDistance * 1.4;
 
-    el.style.opacity = String(opacity);
-    el.style.filter = `blur(${blur}px)`;
-    el.style.transform = `
-      translate(-50%, -50%)
-      translate(${x}px, ${y}px)
-      scale(${scale})
-    `;
-    el.style.zIndex = String(200 - Math.round(absDistance * 20));
-  });
-}
+      el.style.opacity = String(opacity);
+      el.style.filter = `blur(${blur}px)`;
+      el.style.transform = `
+        translate(-50%, -50%)
+        translate(${x}px, ${y}px)
+        scale(${scale})
+      `;
+      el.style.zIndex = String(200 - Math.round(absDistance * 20));
+    });
+  }
 
   function clearWordCarousel() {
     if (!wordCarousel) return;
+
     wordCarousel.innerHTML = "";
     wordItems = [];
     activeWordIndex = 0;
     wordsAreActive = false;
+    hoveredSelectableWord = null;
+
+    cancelHoldSelection();
     document.body.classList.remove("words-active");
+  }
+
+  function getFocusedCarouselWord() {
+    if (selectedChar && !wordsAreActive) {
+      return selectedChar;
+    }
+
+    if (!wordItems.length) return selectedChar || null;
+
+    const focusedIndex = Math.round(carouselProgress);
+    const clampedIndex = clamp(focusedIndex, 0, wordItems.length - 1);
+    return wordItems[clampedIndex]?.textContent || selectedChar || null;
   }
 
   function updateRailVisibilityFromScroll() {
@@ -494,6 +551,64 @@ function renderWordCarousel() {
     }
   }
 
+  /* HOLD-TO-SELECT LOGIC FOR WORDS IN CAROUSEL */
+  function getShopUrl(word) {
+    return `shop.html?word=${encodeURIComponent(word)}`;
+  }
+
+  function setHoldCursorProgress(progress) {
+    if (!holdCursorFill) return;
+    const clamped = clamp(progress, 0, 1);
+    holdCursorFill.style.transform = `scaleY(${clamped})`;
+  }
+
+  function cancelHoldSelection() {
+    isHoldingSelect = false;
+    holdTargetWord = null;
+    holdStartTime = 0;
+
+    if (holdRaf) {
+      cancelAnimationFrame(holdRaf);
+      holdRaf = null;
+    }
+
+    setHoldCursorProgress(0);
+  }
+
+  function completeHoldSelection(word) {
+    cancelHoldSelection();
+    window.location.href = getShopUrl(word);
+  }
+
+  function tickHoldSelection() {
+    if (!isHoldingSelect || !holdTargetWord) return;
+
+    const elapsed = performance.now() - holdStartTime;
+    const progress = clamp(elapsed / holdDuration, 0, 1);
+
+    setHoldCursorProgress(progress);
+
+    if (progress >= 1) {
+      completeHoldSelection(holdTargetWord);
+      return;
+    }
+
+    holdRaf = requestAnimationFrame(tickHoldSelection);
+  }
+
+  function startHoldSelection(word) {
+    if (!word) return;
+
+    cancelHoldSelection();
+
+    holdTargetWord = word;
+    isHoldingSelect = true;
+    holdStartTime = performance.now();
+    setHoldCursorProgress(0);
+
+    holdRaf = requestAnimationFrame(tickHoldSelection);
+  }
+
   computeLayout();
   renderLetters();
 
@@ -502,4 +617,8 @@ function renderWordCarousel() {
   window.addEventListener("resize", handleResize);
   window.addEventListener("wheel", handleWheel, { passive: false });
   window.addEventListener("mousemove", handleMouseMove);
+  window.addEventListener("mouseup", () => {
+    cancelHoldSelection();
+  });
+  window.addEventListener("mousedown", handleGlobalMouseDown);
 }
