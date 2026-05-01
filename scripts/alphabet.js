@@ -390,6 +390,8 @@ export function setupAlphabet() {
       // Keep letter mode active during torus reset so rails stay hidden
       setTimeout(() => {
         isLetterMode = false;
+        railsVisible = true;
+
         document.body.classList.remove("in-letter-mode");
         document.body.classList.remove("transitioning");
 
