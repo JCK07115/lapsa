@@ -300,7 +300,62 @@ export function setupAlphabet() {
     startHoldSelection(focusedWord);
   }
 
-  // back button logic in letter mode
+  // enter letter mode from rail
+  function enterLetterModeForChar(clickedChar) {
+    const targetIndex = letters.indexOf(clickedChar);
+    if (targetIndex === -1) return;
+
+    selectedChar = clickedChar;
+    isLetterMode = true;
+    wordsAreActive = false;
+    carouselProgress = 0;
+    activeWordIndex = 0;
+
+    if (selectedLetterOverlay) {
+      selectedLetterOverlay.textContent = clickedChar;
+      selectedLetterOverlay.classList.remove("is-visible");
+    }
+
+    clearWordCarousel();
+
+    window.dispatchEvent(
+      new CustomEvent("lapsa:letter-select", {
+        detail: { char: clickedChar, index: targetIndex, href: null }
+      })
+    );
+
+    document.body.classList.add("in-letter-mode");
+    hoveredIndex = null;
+    clearHoverStates();
+
+    letterLinks.forEach((link) => {
+      link.classList.remove("selected");
+      if (link.textContent === clickedChar) {
+        link.classList.add("selected");
+      }
+    });
+
+    if (torusGlow) {
+      torusGlow.style.opacity = "1";
+    }
+
+    renderLetters();
+
+    if (selectedLetterOverlay) {
+      setTimeout(() => {
+        selectedLetterOverlay.classList.add("is-visible");
+      }, 950);
+    }
+
+    setTimeout(() => {
+      buildWordCarousel(clickedChar);
+      wordsAreActive = true;
+      document.body.classList.add("words-active");
+      renderWordCarousel();
+    }, 1850);
+  }
+
+  // exit letter mode and return to rail
   if (backButton) {
     backButton.addEventListener("click", () => {
       if (!isLetterMode) return;
@@ -379,56 +434,12 @@ export function setupAlphabet() {
 
     link.addEventListener("click", (event) => {
       event.preventDefault();
-      if (assemblyProgress < 0.94) return;
       if (document.body.classList.contains("transitioning")) return;
       if (isLetterMode) return;
+      if (!railsVisible) return;
 
-      const href = link.href;
       const clickedChar = link.textContent;
-
-      // activate letter mode with the clicked character
-      selectedChar = clickedChar;
-      isLetterMode = true;
-      wordsAreActive = false;
-      carouselProgress = 0;
-      activeWordIndex = 0;
-
-      if (selectedLetterOverlay) {
-        selectedLetterOverlay.textContent = clickedChar;
-        selectedLetterOverlay.classList.remove("is-visible");
-      }
-
-      clearWordCarousel();
-
-      window.dispatchEvent(
-        new CustomEvent("lapsa:letter-select", {
-          detail: { char: clickedChar, index, href }
-        })
-      );
-
-      document.body.classList.add("in-letter-mode");
-      link.classList.add("selected");
-      hoveredIndex = null;
-      clearHoverStates();
-
-      if (torusGlow) {
-        torusGlow.style.opacity = "1";
-      }
-
-      renderLetters();
-
-      if (selectedLetterOverlay) {
-        setTimeout(() => {
-          selectedLetterOverlay.classList.add("is-visible");
-        }, 950);
-      }
-
-      setTimeout(() => {
-        buildWordCarousel(clickedChar);
-        wordsAreActive = true;
-        document.body.classList.add("words-active");
-        renderWordCarousel();
-      }, 1850);
+      enterLetterModeForChar(clickedChar);
     });
   });
 
@@ -553,7 +564,8 @@ export function setupAlphabet() {
 
   /* HOLD-TO-SELECT LOGIC FOR WORDS IN CAROUSEL */
   function getShopUrl(word) {
-    return `shop.html?word=${encodeURIComponent(word)}`;
+    const letter = selectedChar || "";
+    return `shop.html?word=${encodeURIComponent(word)}&letter=${encodeURIComponent(letter)}`;
   }
 
   function setHoldCursorProgress(progress) {
@@ -611,6 +623,16 @@ export function setupAlphabet() {
 
   computeLayout();
   renderLetters();
+
+  // auto-enter letter mode if "letter" param is present in URL and valid
+  const params = new URLSearchParams(window.location.search);
+  const initialLetter = params.get("letter");
+
+  if (initialLetter && letters.includes(initialLetter.toUpperCase())) {
+    setTimeout(() => {
+      enterLetterModeForChar(initialLetter.toUpperCase());
+    }, 120);
+  }
 
   // WINDOW EVENT LISTENERS
   window.addEventListener("scroll", handleScroll, { passive: true });

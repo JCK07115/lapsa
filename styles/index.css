@@ -208,6 +208,7 @@ body.in-letter-mode #torus-glow {
 body.in-letter-mode #letter-back-button {
   opacity: 1;
   pointer-events: auto;
+  cursor: none;
 }
 
 body.in-letter-mode #alphabet-rail {
@@ -327,10 +328,6 @@ body.words-active #word-carousel {
     opacity 0.18s ease,
     filter 0.18s ease;
   pointer-events: none;
-}
-
-.carousel-word.is-selectable {
-  pointer-events: auto;
 }
 
 html, body {

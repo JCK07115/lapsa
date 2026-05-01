@@ -90,7 +90,7 @@
   </head>
   <body>
     <main class="shop-page">
-      <a class="back-link" href="index.html">Back to LAPSA</a>
+      <a class="back-link" id="shop-back-link" href="index.html">Back to carousel</a>
 
       <section class="hero">
         <h1 id="shop-word">Word</h1>
@@ -134,6 +134,7 @@
     <script>
       const params = new URLSearchParams(window.location.search);
       const word = params.get("word") || "Word";
+      const letter = params.get("letter") || "";
 
       document.title = `${word} — LAPSA Shop`;
       document.getElementById("shop-word").textContent = word;
@@ -147,6 +148,12 @@
       document.getElementById("title-tee").textContent = `${word} T-Shirt`;
       document.getElementById("title-hoodie").textContent = `${word} Hoodie`;
       document.getElementById("title-tote").textContent = `${word} Tote`;
+
+      const backLink = document.getElementById("shop-back-link");
+      if (backLink && letter) {
+        backLink.href = `index.html?letter=${encodeURIComponent(letter)}`;
+        backLink.textContent = `Back to ${letter} carousel`;
+      }
     </script>
   </body>
 </html>
