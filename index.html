@@ -26,23 +26,25 @@
 
   <div id="torus-glow"></div>
 
-  <!-- LETTER-RAIL MODE -->
+  <!-- Rail mode -->
   <nav id="alphabet-rail" aria-label="Alphabet navigation"></nav>
 
-  <!-- LETTER-SELECTION MODE -->
-  
-  <div id="alphabet-rail"></div>
+  <!-- Carousel mode overlays -->
   <div id="selected-letter-overlay" aria-hidden="true"></div>
   <div id="word-carousel" aria-hidden="true"></div>
 
-  <!-- select instruction and custom mouse overlay -->
+  <!-- Carousel mode utility UI -->
   <div id="select-instruction">click anywhere and hold to select</div>
+
   <div id="hold-cursor" aria-hidden="true">
     <div id="hold-cursor-fill"></div>
   </div>
 
-  <button id="letter-back-button" type="button" aria-label="Back">Back</button>
-  <div id="page-transition-veil"></div>
+  <button id="carousel-back-button" type="button" aria-label="Back">
+    Back
+  </button>
+
+  <div id="page-transition-veil" aria-hidden="true"></div>
 
   <script type="module" src="scripts/main.js"></script>
 </body>

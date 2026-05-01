@@ -45,7 +45,7 @@ canvas {
   transition: opacity 0.3s;
 }
 
-/* Full-screen letter layer */
+/* Full-screen rail layer */
 #alphabet-rail {
   position: fixed;
   inset: 0;
@@ -54,7 +54,6 @@ canvas {
 }
 
 /* LETTERS */
-/* Each letter is absolutely placed by JS */
 .letter-link {
   position: absolute;
   left: 0;
@@ -101,7 +100,6 @@ canvas {
   opacity: 1 !important;
   color: #1a1a1a !important;
   background: #ffffff !important;
-  /* box-shadow: 0 0 0 1px #ffffff inset; */
   letter-spacing: 0.04em;
 }
 
@@ -113,7 +111,7 @@ canvas {
   opacity: 0.58 !important;
 }
 
-/* Click transition */
+/* Transition state */
 body.transitioning #scroll-hint {
   opacity: 0 !important;
 }
@@ -137,6 +135,7 @@ body.transitioning #alphabet-rail .letter-link.selected {
   filter: blur(0);
 }
 
+/* Selected seed letter overlay */
 #selected-letter-overlay {
   position: fixed;
   left: 50%;
@@ -161,12 +160,13 @@ body.transitioning #alphabet-rail .letter-link.selected {
   transform: translate(-50%, -50%) scale(1);
 }
 
-body.words-active #selected-letter-overlay.is-visible {
+body.carousel-ready #selected-letter-overlay.is-visible {
   opacity: 0;
   transform: translate(-50%, -50%) translateX(-18px) scale(0.82);
 }
 
-#letter-back-button {
+/* Back button */
+#carousel-back-button {
   position: fixed;
   left: 28px;
   top: 24px;
@@ -188,42 +188,43 @@ body.words-active #selected-letter-overlay.is-visible {
     color 0.2s ease;
 }
 
-#letter-back-button:hover {
+#carousel-back-button:hover {
   border-color: rgba(255,255,255,0.9);
   background: #ffffff;
   color: #1a1a1a;
 }
 
-/* body.in-letter {  */
-body.in-letter-mode {
+/* Carousel mode */
+body.in-carousel-mode {
   overflow: hidden;
   cursor: none;
 }
 
-body.in-letter-mode #torus-glow {
+body.in-carousel-mode #torus-glow {
   opacity: 1 !important;
   transform: translate(-50%, -50%) scale(1.2);
 }
 
-body.in-letter-mode #letter-back-button {
+body.in-carousel-mode #carousel-back-button {
   opacity: 1;
   pointer-events: auto;
   cursor: none;
 }
 
-body.in-letter-mode #alphabet-rail {
+body.in-carousel-mode #alphabet-rail {
   pointer-events: none !important;
 }
 
-body.in-letter-mode #alphabet-rail .letter-link {
+body.in-carousel-mode #alphabet-rail .letter-link {
   opacity: 0 !important;
   filter: blur(3px);
 }
 
-body.in-letter-mode #scroll-hint {
+body.in-carousel-mode #scroll-hint {
   opacity: 0 !important;
 }
 
+/* Hold instruction */
 #select-instruction {
   position: fixed;
   right: 28px;
@@ -237,11 +238,11 @@ body.in-letter-mode #scroll-hint {
   transition: opacity 0.25s ease;
 }
 
-body.in-letter-mode #select-instruction {
+body.in-carousel-mode #select-instruction {
   opacity: 1;
 }
 
-/* custom click-and-hold cursor */
+/* Custom click-and-hold cursor */
 #hold-cursor {
   position: fixed;
   left: 0;
@@ -268,7 +269,7 @@ body.in-letter-mode #select-instruction {
   transition: transform 0.06s linear;
 }
 
-body.in-letter-mode #hold-cursor {
+body.in-carousel-mode #hold-cursor {
   opacity: 1;
 }
 
@@ -307,7 +308,7 @@ body.transitioning #page-transition-veil {
   transition: opacity 0.45s ease;
 }
 
-body.words-active #word-carousel {
+body.carousel-ready #word-carousel {
   opacity: 1;
 }
 
@@ -331,12 +332,12 @@ body.words-active #word-carousel {
 }
 
 html, body {
-  scrollbar-width: none; /* Firefox */
+  scrollbar-width: none;
 }
 
 html::-webkit-scrollbar,
 body::-webkit-scrollbar {
-  display: none; /* Chrome, Safari */
+  display: none;
 }
 
 @media (max-width: 700px) {

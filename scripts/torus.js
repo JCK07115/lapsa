@@ -26,10 +26,11 @@ export function setupTorusScene() {
 
   let mouseTiltX = 0;
   let mouseTiltY = 0;
-  // let mouseTiltZ = 0;
+
   let currentMouseLeanX = 0;
   let currentMouseLeanY = 0;
-  let currentMouseLeanZ = 0;          // driven by mouseTiltX for a more dynamic effect
+  let currentMouseLeanZ = 0;
+
   let pointerTiltEnabled = false;
 
   const neutralRotation = {
@@ -38,7 +39,7 @@ export function setupTorusScene() {
     z: THREE.MathUtils.degToRad(6)
   };
 
-  const letterRotationPresets = {
+  const carouselRotationPresets = {
     default: {
       x: THREE.MathUtils.degToRad(84),
       y: THREE.MathUtils.degToRad(0),
@@ -46,13 +47,39 @@ export function setupTorusScene() {
     }
   };
 
-  const currentRotation = { ...neutralRotation };
-  const startRotation = { ...neutralRotation };
-  const targetRotation = { ...neutralRotation };
+  function getInitialRestoreLetter() {
+    const isValidLetter = (value) => /^[A-Z]$/.test(String(value || "").toUpperCase());
 
-  let morphStartTime = 0;
-  let morphDuration = 1450;
-  let isMorphing = false;
+    const historyLetter = history.state?.mode === "carousel"
+      ? String(history.state.letter || "").toUpperCase()
+      : "";
+
+    if (isValidLetter(historyLetter)) {
+      return historyLetter;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const urlLetter = String(params.get("letter") || "").toUpperCase();
+
+    if (isValidLetter(urlLetter)) {
+      return urlLetter;
+    }
+
+    return null;
+  }
+
+  const initialRestoreLetter = getInitialRestoreLetter();
+  const initialRotation = initialRestoreLetter
+    ? (carouselRotationPresets[initialRestoreLetter] || carouselRotationPresets.default || neutralRotation)
+    : neutralRotation;
+
+  const currentRotation = { ...initialRotation };
+  const startRotation = { ...initialRotation };
+  const targetRotation = { ...initialRotation };
+
+  let rotationStartTime = 0;
+  let rotationDuration = 1450;
+  let isRotating = false;
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
@@ -68,23 +95,46 @@ export function setupTorusScene() {
       : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
-  function beginRotationToLetter(char) {
-    const preset = char
-      ? (letterRotationPresets[char] || letterRotationPresets.default || neutralRotation)
+  function beginRotationToPreset(letter, { immediate = false, duration = 1450 } = {}) {
+    const preset = letter
+      ? (carouselRotationPresets[letter] || carouselRotationPresets.default || neutralRotation)
       : neutralRotation;
 
-    Object.assign(startRotation, currentRotation);
-    Object.assign(targetRotation, preset);
+    if (immediate) {
+      currentRotation.x = preset.x;
+      currentRotation.y = preset.y;
+      currentRotation.z = preset.z;
 
-    morphStartTime = performance.now();
-    isMorphing = true;
+      startRotation.x = preset.x;
+      startRotation.y = preset.y;
+      startRotation.z = preset.z;
+
+      targetRotation.x = preset.x;
+      targetRotation.y = preset.y;
+      targetRotation.z = preset.z;
+
+      isRotating = false;
+      return;
+    }
+
+    startRotation.x = currentRotation.x;
+    startRotation.y = currentRotation.y;
+    startRotation.z = currentRotation.z;
+
+    targetRotation.x = preset.x;
+    targetRotation.y = preset.y;
+    targetRotation.z = preset.z;
+
+    rotationStartTime = performance.now();
+    rotationDuration = duration;
+    isRotating = true;
   }
 
   function updateRotationState() {
-    if (!isMorphing) return;
+    if (!isRotating) return;
 
-    const elapsed = performance.now() - morphStartTime;
-    const rawT = clamp(elapsed / morphDuration, 0, 1);
+    const elapsed = performance.now() - rotationStartTime;
+    const rawT = clamp(elapsed / rotationDuration, 0, 1);
     const t = easeInOutCubic(rawT);
 
     currentRotation.x = lerp(startRotation.x, targetRotation.x, t);
@@ -92,7 +142,7 @@ export function setupTorusScene() {
     currentRotation.z = lerp(startRotation.z, targetRotation.z, t);
 
     if (rawT >= 1) {
-      isMorphing = false;
+      isRotating = false;
     }
   }
 
@@ -101,8 +151,10 @@ export function setupTorusScene() {
     const up = u * TWO_PI;
     const vp = (v + phase) * TWO_PI;
 
-    const cosu = Math.cos(up), sinu = Math.sin(up);
-    const cosv = Math.cos(vp), sinv = Math.sin(vp);
+    const cosu = Math.cos(up);
+    const sinu = Math.sin(up);
+    const cosv = Math.cos(vp);
+    const sinv = Math.sin(vp);
 
     const x = (R + r * cosv) * cosu;
     const z = (R + r * cosv) * sinu;
@@ -144,9 +196,11 @@ export function setupTorusScene() {
   scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
   group.scale.set(0.7, 0.7, 0.7);
-  group.rotation.x = neutralRotation.x;
-  group.rotation.y = neutralRotation.y;
-  group.rotation.z = neutralRotation.z;
+  group.rotation.x = initialRotation.x;
+  group.rotation.y = initialRotation.y;
+  group.rotation.z = initialRotation.z;
+
+  pointerTiltEnabled = !!initialRestoreLetter;
 
   function adjustCameraDistance() {
     const aspect = window.innerWidth / window.innerHeight;
@@ -161,7 +215,11 @@ export function setupTorusScene() {
 
   adjustCameraDistance();
 
-  // update torus geometry to create smooth transition
+  const positionAttr = geometry.attributes.position;
+  const tmp = new THREE.Vector3();
+  let phase = 0;
+  let clickPulse = 0;
+
   function updateFlow(currentPhase) {
     let index = 0;
 
@@ -198,7 +256,7 @@ export function setupTorusScene() {
     const targetLeanX = pointerTiltEnabled ? mouseTiltY * 0.04 : 0;
     const targetLeanY = pointerTiltEnabled ? mouseTiltX * 0.04 : 0;
     const targetLeanZ = pointerTiltEnabled ? mouseTiltX * 0.25 : 0;
-    
+
     currentMouseLeanX += (targetLeanX - currentMouseLeanX) * 0.08;
     currentMouseLeanY += (targetLeanY - currentMouseLeanY) * 0.08;
     currentMouseLeanZ += (targetLeanZ - currentMouseLeanZ) * 0.06;
@@ -221,35 +279,34 @@ export function setupTorusScene() {
     adjustCameraDistance();
   });
 
-  const positionAttr = geometry.attributes.position;
-  const tmp = new THREE.Vector3();
-  let phase = 0;
-  let clickPulse = 0;
-
-  // rotate torus when a letter is selected
   window.addEventListener("lapsa:letter-select", (event) => {
-    const { char, index, href } = event.detail || {};
-    
-    console.log("[torus] letter selected:", char, index, href);
+    const detail = event.detail || {};
+    const letter = detail.letter || detail.char || null;
+    const source = detail.source || "fresh";
 
-    // enable pointer (carousel and torus) tilt on select to allow tilting in letter view
+    console.log("[torus] carousel selected:", letter, source);
+
     pointerTiltEnabled = true;
-    
-    clickPulse = 1;
-    beginRotationToLetter(char);
-  });
-  
-  // undo torus rotation to default when back button is clicked (letter deselection)
-  window.addEventListener("lapsa:letter-deselect", () => {
-    console.log("[torus] letter deselected");
-    clickPulse = 0;
 
-    // disable pointer (carousel and torus) tilt on deselect to prevent unwanted tilting when returning to main view
+    if (source === "restore") {
+      clickPulse = 0;
+      beginRotationToPreset(letter, { immediate: true });
+      return;
+    }
+
+    clickPulse = 1;
+    beginRotationToPreset(letter, { immediate: false, duration: 1450 });
+  });
+
+  window.addEventListener("lapsa:letter-deselect", () => {
+    console.log("[torus] carousel deselected");
+
+    clickPulse = 0;
     pointerTiltEnabled = false;
     mouseTiltX = 0;
     mouseTiltY = 0;
-    
-    beginRotationToLetter(null);
+
+    beginRotationToPreset(null, { immediate: false, duration: 1450 });
   });
 
   window.addEventListener("lapsa:pointer-move", (event) => {
